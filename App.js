@@ -1,20 +1,20 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+
+import AppProvider from './src/app/AppProvider';
+import RootNavigator from './src/presentation/navigation/RootNavigator';
+import { useThemeStore } from './src/store/themeStore';
+
+function AppStatusBar() {
+  const themeMode = useThemeStore((state) => state.themeMode);
+
+  return <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />;
+}
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <AppProvider>
+      <RootNavigator />
+      <AppStatusBar />
+    </AppProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
