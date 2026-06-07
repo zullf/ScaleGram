@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "948862000150-3370m46ml1revs6b7biav1s2834sk2lp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adityaaryobima.ScaleGram",
+            "certificate_hash": "66f1225127ac258180e07504d318aeac07007018"
+          }
+        },
+        {
+          "client_id": "948862000150-qes4cbv61j0flvl45m7pepktp5ki3fal.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adityaaryobima.ScaleGram",
+            "certificate_hash": "b2377498e948e701d9e533af3619cd5566161e66"
+          }
+        },
+        {
           "client_id": "948862000150-2uraoprhmf47t48pqu8q7m17dumrbsn4.apps.googleusercontent.com",
           "client_type": 3
         }

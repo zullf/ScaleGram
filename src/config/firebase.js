@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Note: Replace with actual environment variables handling
 const firebaseConfig = {
@@ -23,8 +24,23 @@ if (getApps().length === 0) {
   app = getApp();
 }
 
-// Initialize Auth & Firestore
-const auth = getAuth(app);
+// Initialize Auth with React Native persistence if available, otherwise fall back
+let auth;
+try {
+  const hasGetReactNativePersistence = typeof getReactNativePersistence === 'function';
+  const hasAsyncStorage = !!ReactNativeAsyncStorage;
+
+  if (hasGetReactNativePersistence && hasAsyncStorage) {
+    const persistence = getReactNativePersistence(ReactNativeAsyncStorage);
+    auth = initializeAuth(app, { persistence });
+  } else {
+    auth = getAuth(app);
+  }
+} catch (e) {
+  console.warn('Failed to initialize Auth with React Native persistence, falling back to memory persistence:', e);
+  auth = getAuth(app);
+}
+
 const db = getFirestore(app);
 
 export { app, auth, db };

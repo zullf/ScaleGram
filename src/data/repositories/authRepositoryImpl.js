@@ -1,4 +1,4 @@
-import AuthRepository from '../../domain/repositories/AuthRepository';
+import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
 import User from '../../domain/entities/User';
 
