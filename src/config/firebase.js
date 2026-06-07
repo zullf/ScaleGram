@@ -1,22 +1,21 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage'; // ✅ Tambahkan import Storage
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
-// Note: Replace with actual environment variables handling
+// Memanggil konfigurasi dari file .env
 const firebaseConfig = {
-  apiKey: "AIzaSyANQxASgw6CrzTANzRYPjjpkd6cFFzTUDo",
-  authDomain: "scalegram-2083e.firebaseapp.com",
-  projectId: "scalegram-2083e",
-  storageBucket: "scalegram-2083e.firebasestorage.app",
-  messagingSenderId: "948862000150",
-  appId: "1:948862000150:web:0f492101cfdcb5b217a937",
-  measurementId: "G-6R84GQJ3QB"
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+  measurementId: process.env.FIREBASE_MEASUREMENT_ID
 };
 
-
 // Initialize Firebase App
-// This check prevents multiple initializations during hot reloading in React Native
 let app;
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
@@ -24,7 +23,7 @@ if (getApps().length === 0) {
   app = getApp();
 }
 
-// Initialize Auth with React Native persistence if available, otherwise fall back
+// Initialize Auth
 let auth;
 try {
   const hasGetReactNativePersistence = typeof getReactNativePersistence === 'function';
@@ -37,10 +36,12 @@ try {
     auth = getAuth(app);
   }
 } catch (e) {
-  console.warn('Failed to initialize Auth with React Native persistence, falling back to memory persistence:', e);
+  console.warn('Failed to initialize Auth, falling back:', e);
   auth = getAuth(app);
 }
 
+// Initialize Firestore & Storage
 const db = getFirestore(app);
+const storage = getStorage(app); 
 
-export { app, auth, db };
+export { app, auth, db, storage }; 

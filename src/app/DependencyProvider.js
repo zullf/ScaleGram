@@ -1,7 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 
 import { auth, db, storage } from '../config/firebase';
-// 1. Import instance Auth yang sudah kita perbaiki (sesuaikan path jika perlu)
 import { firebaseAuthDataSource } from '../data/datasources/firebaseAuthDataSource'; 
 import { authRepository } from '../data/repositories/authRepositoryImpl';
 
@@ -10,7 +9,8 @@ import { createPostFirebaseDataSource } from '../data/datasources/firebase/postF
 import { createUserFirebaseDataSource } from '../data/datasources/firebase/userFirebaseDataSource';
 import { createAsyncStorageDataSource } from '../data/datasources/local/asyncStorageDataSource';
 import { createSQLiteDataSource } from '../data/datasources/sqlite/sqliteDataSource';
-import { createPostRepository } from '../data/repositories/postRepositoryImpl';
+
+import { postRepository } from '../data/repositories/postRepositoryImpl'; 
 import { createUserRepository } from '../data/repositories/userRepositoryImpl';
 
 const DependencyContext = createContext(null);
@@ -18,9 +18,7 @@ const DependencyContext = createContext(null);
 export default function DependencyProvider({ children }) {
   const dependencies = useMemo(() => {
     
-    // 2. Gunakan langsung instance Auth yang sudah ada, tanpa fungsi create()
     const authDataSource = firebaseAuthDataSource;
-    
     const postDataSource = createPostFirebaseDataSource(db, storage);
     const userDataSource = createUserFirebaseDataSource(db);
     const localStorage = createAsyncStorageDataSource();
@@ -40,9 +38,9 @@ export default function DependencyProvider({ children }) {
         sqlite,
       },
       repositories: {
-        // 3. Gunakan langsung instance AuthRepository
         authRepository: authRepository,
-        postRepository: createPostRepository(postDataSource),
+        // ✅ UBAH BARIS INI: Gunakan instance postRepository secara langsung
+        postRepository: postRepository, 
         userRepository: createUserRepository(userDataSource),
       },
     };

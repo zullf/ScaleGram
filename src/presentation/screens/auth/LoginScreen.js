@@ -32,22 +32,18 @@ export default function LoginScreen({ navigation }) {
   };
 
  const handleGoogleSignIn = async () => {
-    console.log("--- 1. Tombol Google diklik! ---");
     clearError();
 
     try {
-      console.log("--- 2. Mengecek Google Play Services... ---");
-      // Langsung panggil dari library-nya
       await GoogleSignin.hasPlayServices();
       
-      console.log("--- 3. Membuka popup Google Sign-In... ---");
+      console.log("Membuka popup Google Sign-In");
       const userInfo = await GoogleSignin.signIn();
       
-      console.log("--- 4. Berhasil login! Mengecek token... ---");
       const idToken = userInfo.idToken || userInfo.data?.idToken;
 
       if (idToken) {
-        console.log("--- 5. Token didapat! Mengirim ke authStore... ---");
+        console.log("Token didapat! Mengirim ke authStore");
         await googleSignInStore(idToken);
       } else {
         throw new Error('Token tidak didapatkan dari Google');
