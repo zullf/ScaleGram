@@ -6,7 +6,7 @@ export default function FeedScreen() {
   
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Sedang Mengetes Feed & Scroll. Cek Terminal!</Text>
+      <Text>Halaman Feed ScaleGram</Text>
     </View>
   );
 }
