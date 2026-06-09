@@ -1,20 +1,24 @@
 import { createContext, useContext, useMemo } from 'react';
 
 import { auth, db, storage } from '../config/firebase';
-import { createAuthFirebaseDataSource } from '../data/datasources/firebase/authFirebaseDataSource';
+import { firebaseAuthDataSource } from '../data/datasources/firebaseAuthDataSource'; 
+import { authRepository } from '../data/repositories/authRepositoryImpl';
+
+// Biarkan data source lain yang belum diubah tetap pakai 'create...'
 import { createPostFirebaseDataSource } from '../data/datasources/firebase/postFirebaseDataSource';
 import { createUserFirebaseDataSource } from '../data/datasources/firebase/userFirebaseDataSource';
 import { createAsyncStorageDataSource } from '../data/datasources/local/asyncStorageDataSource';
 import { createSQLiteDataSource } from '../data/datasources/sqlite/sqliteDataSource';
-import { createAuthRepository } from '../data/repositories/authRepositoryImpl';
-import { createPostRepository } from '../data/repositories/postRepositoryImpl';
+
+import { postRepository } from '../data/repositories/postRepositoryImpl'; 
 import { createUserRepository } from '../data/repositories/userRepositoryImpl';
 
 const DependencyContext = createContext(null);
 
 export default function DependencyProvider({ children }) {
   const dependencies = useMemo(() => {
-    const authDataSource = createAuthFirebaseDataSource(auth);
+    
+    const authDataSource = firebaseAuthDataSource;
     const postDataSource = createPostFirebaseDataSource(db, storage);
     const userDataSource = createUserFirebaseDataSource(db);
     const localStorage = createAsyncStorageDataSource();
@@ -34,8 +38,9 @@ export default function DependencyProvider({ children }) {
         sqlite,
       },
       repositories: {
-        authRepository: createAuthRepository(authDataSource, localStorage),
-        postRepository: createPostRepository(postDataSource),
+        authRepository: authRepository,
+        // ✅ UBAH BARIS INI: Gunakan instance postRepository secara langsung
+        postRepository: postRepository, 
         userRepository: createUserRepository(userDataSource),
       },
     };
