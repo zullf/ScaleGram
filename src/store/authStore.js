@@ -7,7 +7,7 @@ export const useAuthStore = create(
   persist(
     (set) => ({
       user: null,        
-      isAuthenticated: false, // 1. Tambahkan state default
+      isAuthenticated: false, 
       isLoading: false,  
       error: null,       
 
@@ -15,7 +15,6 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const user = await authUsecases.login(email, password);
-          // 2. Ubah isAuthenticated jadi true
           set({ user, isAuthenticated: true, isLoading: false }); 
         } catch (error) {
           set({ error: error.message, isLoading: false }); 
@@ -27,7 +26,6 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const user = await authUsecases.register(email, password, displayName);
-          // 3. Ubah isAuthenticated jadi true
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error) {
           set({ error: error.message, isLoading: false });
@@ -39,7 +37,6 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const user = await authUsecases.googleSignIn(idToken);
-          // 4. Ubah isAuthenticated jadi true
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error) {
           set({ error: error.message, isLoading: false });
@@ -51,7 +48,6 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           await authUsecases.logout();
-          // 5. Kembalikan ke false saat logout
           set({ user: null, isAuthenticated: false, isLoading: false }); 
         } catch (error) {
           set({ error: error.message, isLoading: false });
@@ -85,7 +81,6 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           await authUsecases.deleteAccount();
-          // 6. Kembalikan ke false saat akun dihapus
           set({ user: null, isAuthenticated: false, isLoading: false }); 
         } catch (error) {
           set({ error: error.message, isLoading: false });
@@ -98,7 +93,6 @@ export const useAuthStore = create(
     {
       name: 'scalegram-auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      // 7. Simpan juga status isAuthenticated ke AsyncStorage biar ga perlu login ulang saat app ditutup
       partialize: (state) => ({ 
         user: state.user,
         isAuthenticated: state.isAuthenticated 

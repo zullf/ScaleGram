@@ -13,8 +13,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer theme={appThemes[themeMode]}>
-     {/* {isAuthenticated ? <AppDrawer /> : <AuthStack />} */}
-      {isAuthenticated ? <MainTabs /> : <AuthStack />}
+     {isAuthenticated ? <MainTabs /> : <AuthStack />}
     </NavigationContainer>
   );
 }

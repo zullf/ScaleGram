@@ -4,7 +4,6 @@ import { auth, db, storage } from '../config/firebase';
 import { firebaseAuthDataSource } from '../data/datasources/firebaseAuthDataSource'; 
 import { authRepository } from '../data/repositories/authRepositoryImpl';
 
-// Biarkan data source lain yang belum diubah tetap pakai 'create...'
 import { createPostFirebaseDataSource } from '../data/datasources/firebase/postFirebaseDataSource';
 import { createUserFirebaseDataSource } from '../data/datasources/firebase/userFirebaseDataSource';
 import { createAsyncStorageDataSource } from '../data/datasources/local/asyncStorageDataSource';
@@ -39,7 +38,6 @@ export default function DependencyProvider({ children }) {
       },
       repositories: {
         authRepository: authRepository,
-        // ✅ UBAH BARIS INI: Gunakan instance postRepository secara langsung
         postRepository: postRepository, 
         userRepository: createUserRepository(userDataSource),
       },

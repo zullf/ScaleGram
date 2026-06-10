@@ -1,10 +1,9 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage'; // ✅ Tambahkan import Storage
+import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
-// Memanggil konfigurasi dari file .env
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -15,7 +14,6 @@ const firebaseConfig = {
   measurementId: process.env.FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase App
 let app;
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
@@ -23,7 +21,6 @@ if (getApps().length === 0) {
   app = getApp();
 }
 
-// Initialize Auth
 let auth;
 try {
   const hasGetReactNativePersistence = typeof getReactNativePersistence === 'function';
@@ -40,7 +37,6 @@ try {
   auth = getAuth(app);
 }
 
-// Initialize Firestore & Storage
 const db = getFirestore(app);
 const storage = getStorage(app); 
 
