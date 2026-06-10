@@ -151,7 +151,7 @@ Lapisan yang bertanggung jawab dalam pengelolaan data dari Firebase maupun penyi
 
 ---
 
-## 8. Optimasi Performa
+## 7. Optimasi Performa
 
 Beberapa teknik optimasi performa yang digunakan pada aplikasi ScaleGram meliputi:
 
@@ -181,7 +181,7 @@ Beberapa teknik optimasi performa yang digunakan pada aplikasi ScaleGram meliput
 
 ---
 
-## 9. Strategi Offline-First
+## 8. Strategi Offline-First
 
 ### Local Cache
 
@@ -201,7 +201,7 @@ Beberapa teknik optimasi performa yang digunakan pada aplikasi ScaleGram meliput
 
 ---
 
-## 10. Teknologi yang Digunakan
+## 9. Teknologi yang Digunakan
 
 ### Frontend
 
