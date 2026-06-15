@@ -5,29 +5,144 @@ import {
   TextInput,
   Button,
   ActivityIndicator,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  GOOGLE_WEB_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+} from '@env';
 
 import { useAuthStore } from '../../../store/authStore';
+
+const logoImage = require('../../../../assets/logo.jpg');
+const fallbackGoogleWebClientId = '948862000150-2uraoprhmf47t48pqu8q7m17dumrbsn4.apps.googleusercontent.com';
+
+const googleSignInConfig = {
+  scopes: ['profile', 'email'],
+  webClientId: GOOGLE_WEB_CLIENT_ID || fallbackGoogleWebClientId,
+  ...(GOOGLE_IOS_CLIENT_ID ? { iosClientId: GOOGLE_IOS_CLIENT_ID } : {}),
+};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const { login, resetPassword, googleSignInStore, user, isLoading, error, logout, clearError, deleteAccount } = useAuthStore();
+
+  useEffect(() => {
+    GoogleSignin.configure(googleSignInConfig);
+    clearError();
+  }, [clearError]);
+
+  const handleAction = async () => {
+    try {
+      if (mode === 'login') {
+        await login(email, password);
+        return;
+      }
+
+      await resetPassword(email);
+      Alert.alert('Reset Password', 'Link reset password sudah dikirim ke email kamu.');
+      setMode('login');
+    } catch (e) {
+      console.log('Auth action gagal:', e?.message || e);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    clearError();
+
+    try {
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+
+      const response = await GoogleSignin.signIn();
+
+      if (response?.type === 'cancelled') {
+        return;
+      }
+
+      const googleUser = response?.type === 'success' ? response.data : response;
+      let idToken = googleUser?.idToken;
+
+      if (!idToken) {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = tokens?.idToken;
+      }
+
+      if (!idToken) {
+        throw new Error('Token tidak didapatkan dari Google');
+      }
+
+      await googleSignInStore(idToken);
+    } catch (e) {
+      if (e?.code === statusCodes.SIGN_IN_CANCELLED) {
+        return;
+      }
+
+      console.log('Google Sign-In gagal:', e?.message || e);
+      Alert.alert('Google Sign-In gagal', e?.message || 'Tidak bisa masuk dengan Google saat ini.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      try {
+        await GoogleSignin.signOut();
+      } catch (_) {}
+
+      await logout();
+    } catch (e) {
+      console.log('Logout gagal:', e?.message || e);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Hapus Akun',
+      'Akun kamu akan dihapus permanen. Lanjutkan?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              try {
+                await GoogleSignin.revokeAccess();
+                await GoogleSignin.signOut();
+              } catch (_) {}
+
+              await deleteAccount();
+            } catch (e) {
+              console.log('Hapus akun gagal:', e?.message || e);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.keyboardView}
     >
       <View style={styles.container}>
-        <Text style={styles.brand}>ScaleGram</Text>
+        <Image source={logoImage} style={styles.logo} resizeMode="contain" />
 
         {user ? (
           <View style={styles.successWrapper}>
@@ -116,9 +231,15 @@ export default function LoginScreen({ navigation }) {
                       <View style={styles.dividerLine} />
                     </View>
 
-                    <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn} disabled={isLoading}>
+                    <TouchableOpacity
+                      style={styles.googleButton}
+                      onPress={handleGoogleSignIn}
+                      disabled={isLoading || isGoogleLoading}
+                    >
                       <Text style={styles.googleIcon}>G</Text>
-                      <Text style={styles.googleButtonText}>Google Sign In</Text>
+                      <Text style={styles.googleButtonText}>
+                        {isGoogleLoading ? 'Menghubungkan...' : 'Google Sign In'}
+                      </Text>
                     </TouchableOpacity>
 
                     <View style={styles.registerRow}>
@@ -146,7 +267,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   keyboardView: { flex: 1 },
   container: { flex: 1, backgroundColor: '#FCF8FF', paddingHorizontal: 14, paddingTop: 24, paddingBottom: 14 },
-  brand: { marginTop: 30, color: '#4D49DF', fontSize: 17, fontWeight: '800' },
+  logo: { width: 132, height: 42, marginTop: 30 },
   content: { flex: 1, justifyContent: 'center', paddingBottom: 48 },
   header: { alignItems: 'center', marginBottom: 28 },
   title: { color: '#1D1B26', fontSize: 24, fontWeight: '700', marginBottom: 8, textAlign: 'center' },

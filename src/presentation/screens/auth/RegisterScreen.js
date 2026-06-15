@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -11,6 +12,8 @@ import {
 } from 'react-native';
 
 import { useAuthStore } from '../../../store/authStore';
+
+const logoImage = require('../../../../assets/logo.jpg');
 
 export default function RegisterScreen({ navigation }) {
   const [nama, setNama] = useState('');
@@ -37,7 +40,7 @@ export default function RegisterScreen({ navigation }) {
       style={styles.keyboardView}
     >
       <View style={styles.container}>
-        <Text style={styles.brand}>ScaleGram</Text>
+        <Image source={logoImage} style={styles.logo} resizeMode="contain" />
 
         <View style={styles.content}>
           <View style={styles.header}>
@@ -125,11 +128,10 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 14,
   },
-  brand: {
+  logo: {
+    width: 132,
+    height: 42,
     marginTop: 30,
-    color: '#4D49DF',
-    fontSize: 17,
-    fontWeight: '800',
   },
   content: {
     flex: 1,

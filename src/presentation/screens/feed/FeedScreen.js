@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PURPLE = '#6366F1';
+const logoImage = require('../../../../assets/logo.jpg');
 
 const creators = [
   {
@@ -190,7 +191,7 @@ function FeedHeader() {
           <Ionicons name="menu-outline" size={24} color={PURPLE} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>ScaleGram</Text>
+        <Image source={logoImage} style={styles.headerLogo} contentFit="contain" />
       </View>
     </View>
   );
@@ -334,10 +335,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    color: PURPLE,
-    fontSize: 22,
-    fontWeight: '700',
+  headerLogo: {
+    width: 126,
+    height: 38,
     marginLeft: 10,
   },
   feedContent: {
