@@ -1,6 +1,9 @@
 import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
 import User from '../../domain/entities/User';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+import { GOOGLE_WEB_CLIENT_ID } from '@env';
 
 class AuthRepositoryImpl extends AuthRepository {
   
@@ -63,7 +66,21 @@ class AuthRepositoryImpl extends AuthRepository {
 
   async logout() {
     try {
+      try {
+        GoogleSignin.configure({
+          webClientId: GOOGLE_WEB_CLIENT_ID,
+        });
+
+        await GoogleSignin.revokeAccess();
+        await GoogleSignin.signOut();
+        //console.log("[Auth] Sesi Google Sign-In berhasil dihapus dari perangkat.");
+      } catch (googleError) {
+        // console.log("[Auth] Tidak ada sesi Google yang aktif.");
+      }
+
       await firebaseAuthDataSource.logout();
+     //console.log("[Auth] Sesi Firebase berhasil dihapus.");
+
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -88,6 +105,17 @@ class AuthRepositoryImpl extends AuthRepository {
 
   async deleteAccount() {
     try {
+      try {
+        GoogleSignin.configure({
+          webClientId: 'KODE_WEB_CLIENT_ID_KAMU.apps.googleusercontent.com', 
+        });
+        
+        await GoogleSignin.revokeAccess();
+        await GoogleSignin.signOut();
+      } catch (googleError) {
+        //console.log("[Auth] Bypass pencabutan akses Google di hapus akun.");
+      }
+
       await firebaseAuthDataSource.deleteCurrentUser();
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
