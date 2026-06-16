@@ -142,7 +142,6 @@ export default function CreatePostScreen() {
           </View>
         </View>
 
-        {/* Tags Section */}
         <View style={styles.section}>
           <View style={styles.tagsHeader}>
             <Text
