@@ -9,8 +9,8 @@ import { createUserFirebaseDataSource } from '../data/datasources/firebase/userF
 import { createAsyncStorageDataSource } from '../data/datasources/local/asyncStorageDataSource';
 import { createSQLiteDataSource } from '../data/datasources/sqlite/sqliteDataSource';
 
-import { postRepository } from '../data/repositories/postRepositoryImpl'; 
-import { createUserRepository } from '../data/repositories/userRepositoryImpl';
+import { createPostRepository } from '../data/repositories/postRepositoryImpl'; 
+import { userRepository } from '../data/repositories/userRepositoryImpl';
 
 const DependencyContext = createContext(null);
 
@@ -38,8 +38,8 @@ export default function DependencyProvider({ children }) {
       },
       repositories: {
         authRepository: authRepository,
-        postRepository: postRepository, 
-        userRepository: createUserRepository(userDataSource),
+        postRepository: createPostRepository(postDataSource, sqlite), 
+        userRepository: userRepository,
       },
     };
   }, []);

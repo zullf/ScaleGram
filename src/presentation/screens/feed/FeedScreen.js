@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFeed } from '../../hooks/useFeed';
 
 const PURPLE = '#6366F1';
 const logoImage = require('../../../../assets/logo.jpg');
@@ -58,129 +59,6 @@ const creators = [
   },
 ];
 
-const posts = [
-  {
-    id: 'post-1',
-    userName: 'Felix R.',
-    role: 'UX Designer',
-    avatar: creators[0].avatar,
-    content:
-      'Experimenting with new glassmorphism techniques in the latest Nexus dashboard iteration. The goal is to maximize whitespace while maintaining a sense of hierarchy through tonal layering.',
-    image: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=1200&q=85',
-    likes: '1.2k',
-    comments: 48,
-    timestamp: '2h ago',
-  },
-  {
-    id: 'post-2',
-    userName: 'Marcus K.',
-    role: 'Creative Director',
-    avatar: creators[2].avatar,
-    content:
-      'Motion is the soul of interaction. Working on atmospheric shader effects for our upcoming student showcases. What do you think of this depth?',
-    image: 'https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&w=1200&q=85',
-    likes: 842,
-    comments: 124,
-    timestamp: '5h ago',
-  },
-  {
-    id: 'post-3',
-    userName: 'Elena M.',
-    role: 'Full-stack Dev',
-    avatar: creators[3].avatar,
-    content:
-      'Finally launched the open-source library for the Sophist design system. Focus on accessibility and 8px grid perfection. Check it out in the link in bio.',
-    image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=85',
-    likes: '3.4k',
-    comments: 215,
-    timestamp: '1d ago',
-  },
-  {
-    id: 'post-4',
-    userName: 'Sarah J.',
-    role: 'Product Designer',
-    avatar: creators[1].avatar,
-    content:
-      'Mapping the onboarding flow for a founder dashboard. Tiny copy changes reduced confusion in our prototype test by a surprising amount.',
-    image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=85',
-    likes: 931,
-    comments: 67,
-    timestamp: '1d ago',
-  },
-  {
-    id: 'post-5',
-    userName: 'Leo P.',
-    role: 'Front-End Developer',
-    avatar: creators[4].avatar,
-    content:
-      'Built a responsive card grid in React with fluid image ratios, reduced layout shift, and cleaner focus states for keyboard users.',
-    image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1200&q=85',
-    likes: '2.1k',
-    comments: 139,
-    timestamp: '2d ago',
-  },
-  {
-    id: 'post-6',
-    userName: 'Alya N.',
-    role: 'Mobile Developer',
-    avatar: creators[5].avatar,
-    content:
-      'React Native performance day. Memoized post cards, optimized image loading, and trimmed re-renders across the home feed.',
-    image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1200&q=85',
-    likes: 778,
-    comments: 52,
-    timestamp: '2d ago',
-  },
-  {
-    id: 'post-7',
-    userName: 'Raka D.',
-    role: 'Startup Founder',
-    avatar: creators[6].avatar,
-    content:
-      'Our beta community crossed 1,000 makers today. The best product research still comes from listening carefully to early users.',
-    image: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=1200&q=85',
-    likes: '4.8k',
-    comments: 318,
-    timestamp: '3d ago',
-  },
-  {
-    id: 'post-8',
-    userName: 'Maya C.',
-    role: 'Content Creator',
-    avatar: creators[7].avatar,
-    content:
-      'Recording a breakdown about visual hierarchy for beginner designers. Strong layout decisions make content feel more trustworthy.',
-    image: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1200&q=85',
-    likes: '1.7k',
-    comments: 83,
-    timestamp: '3d ago',
-  },
-  {
-    id: 'post-9',
-    userName: 'Nadia S.',
-    role: 'UI/UX Designer',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
-    content:
-      'Refined a fintech mobile concept with calmer colors, clearer empty states, and a more confident primary action hierarchy.',
-    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1200&q=85',
-    likes: '2.9k',
-    comments: 176,
-    timestamp: '4d ago',
-  },
-  {
-    id: 'post-10',
-    userName: 'Dimas A.',
-    role: 'Tech Writer',
-    avatar: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?auto=format&fit=crop&w=200&q=80',
-    content:
-      'Writing about the future of creative communities: smaller networks, higher signal, and tools that help people share process.',
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=85',
-    likes: 654,
-    comments: 41,
-    timestamp: '5d ago',
-  },
-];
-
 function FeedHeader() {
   const insets = useSafeAreaInsets();
 
@@ -220,7 +98,7 @@ function FeaturedCreators() {
   );
 }
 
-function CreatorItem({ creator }) {
+const CreatorItem = React.memo(function CreatorItem({ creator }) {
   return (
     <TouchableOpacity style={styles.creatorItem} activeOpacity={0.78}>
       <View style={styles.creatorAvatarRing}>
@@ -231,22 +109,22 @@ function CreatorItem({ creator }) {
       </Text>
     </TouchableOpacity>
   );
-}
+});
 
-function PostCard({ post }) {
+const PostCard = React.memo(function PostCard({ post, onLike }) {
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <Image source={{ uri: post.avatar }} style={styles.userAvatar} contentFit="cover" />
+        <Image source={{ uri: post.userAvatar || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80' }} style={styles.userAvatar} contentFit="cover" />
 
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{post.userName}</Text>
+          <Text style={styles.userName}>{post.userName || 'Member'}</Text>
           <View style={styles.metaRow}>
             <Text style={styles.userRole} numberOfLines={1}>
-              {post.role}
+              {post.role || 'User'}
             </Text>
             <Text style={styles.metaDot}>{'\u2022'}</Text>
-            <Text style={styles.timestamp}>{post.timestamp}</Text>
+            <Text style={styles.timestamp}>{post.timestamp || 'Baru Saja'}</Text>
           </View>
         </View>
 
@@ -256,15 +134,15 @@ function PostCard({ post }) {
       </View>
 
       <Text style={styles.caption} numberOfLines={5}>
-        {post.content}
+        {post.caption || post.content}
       </Text>
 
-      <Image source={{ uri: post.image }} style={styles.postImage} contentFit="cover" />
+      <Image source={{ uri: post.imageUrl || post.image }} style={styles.postImage} contentFit="cover" />
 
       <View style={styles.actionBar}>
         <View style={styles.leftActions}>
-          <ActionButton icon="heart-outline" label={post.likes} />
-          <ActionButton icon="chatbubble-outline" label={post.comments} />
+          <ActionButton icon="heart-outline" label={post.likesCount || 0} onPress={onLike} />
+          <ActionButton icon="chatbubble-outline" label={post.commentsCount || 0} />
           <TouchableOpacity style={styles.iconOnlyButton} activeOpacity={0.72}>
             <Ionicons name="share-social-outline" size={22} color="#374151" />
           </TouchableOpacity>
@@ -276,18 +154,38 @@ function PostCard({ post }) {
       </View>
     </View>
   );
-}
+});
 
-function ActionButton({ icon, label }) {
+function ActionButton({ icon, label, onPress }) {
   return (
-    <TouchableOpacity style={styles.actionButton} activeOpacity={0.72}>
+    <TouchableOpacity style={styles.actionButton} activeOpacity={0.72} onPress={onPress}>
       <Ionicons name={icon} size={22} color="#374151" />
       <Text style={styles.actionText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
+import { useDependencies } from '../../../app/DependencyProvider';
+import { useAuthStore } from '../../../store/authStore';
+
 export default function FeedScreen() {
+  const { posts, setPosts, refreshing, refetch, loadMore } = useFeed();
+  const { repositories: { postRepository } } = useDependencies();
+  const user = useAuthStore((state) => state.user);
+
+  const handleLike = async (postId, currentLikes) => {
+    if (!user) return;
+    try {
+      // Optimistic update
+      setPosts(posts.map(p => p.id === postId ? { ...p, likesCount: (p.likesCount || 0) + 1 } : p));
+      await postRepository.likePost(postId, user.id);
+    } catch (error) {
+      console.error('Error liking post:', error);
+      // Revert optimistic update
+      setPosts(posts.map(p => p.id === postId ? { ...p, likesCount: currentLikes } : p));
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -296,10 +194,19 @@ export default function FeedScreen() {
       <FlatList
         data={posts}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => <PostCard post={item} onLike={() => handleLike(item.id, item.likesCount || 0)} />}
         ListHeaderComponent={<FeaturedCreators />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.feedContent}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={11}
+        removeClippedSubviews={true}
+        getItemLayout={(data, index) => ({ length: 450, offset: 450 * index, index })}
+        onRefresh={refetch}
+        refreshing={refreshing}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );
@@ -494,5 +401,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 5,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#EF4444',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  offlineText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

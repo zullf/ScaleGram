@@ -73,13 +73,10 @@ class AuthRepositoryImpl extends AuthRepository {
 
         await GoogleSignin.revokeAccess();
         await GoogleSignin.signOut();
-        //console.log("[Auth] Sesi Google Sign-In berhasil dihapus dari perangkat.");
       } catch (googleError) {
-        // console.log("[Auth] Tidak ada sesi Google yang aktif.");
       }
 
       await firebaseAuthDataSource.logout();
-     //console.log("[Auth] Sesi Firebase berhasil dihapus.");
 
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
@@ -113,7 +110,6 @@ class AuthRepositoryImpl extends AuthRepository {
         await GoogleSignin.revokeAccess();
         await GoogleSignin.signOut();
       } catch (googleError) {
-        //console.log("[Auth] Bypass pencabutan akses Google di hapus akun.");
       }
 
       await firebaseAuthDataSource.deleteCurrentUser();
