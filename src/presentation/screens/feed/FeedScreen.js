@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFeed } from '../../hooks/useFeed';
+import { timeAgo } from '../../../utils/timeFormat';
 
 const PURPLE = '#6366F1';
 const logoImage = require('../../../../assets/logo.jpg');
@@ -124,7 +125,9 @@ const PostCard = React.memo(function PostCard({ post, onLike }) {
               {post.role || 'User'}
             </Text>
             <Text style={styles.metaDot}>{'\u2022'}</Text>
-            <Text style={styles.timestamp}>{post.timestamp || 'Baru Saja'}</Text>
+            <Text style={styles.timeText}>
+              {timeAgo(post.createdAt)}
+            </Text>
           </View>
         </View>
 
@@ -193,7 +196,7 @@ export default function FeedScreen() {
 
       <FlatList
         data={posts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id ? `${item.id}_${index}` : index.toString()}
         renderItem={({ item }) => <PostCard post={item} onLike={() => handleLike(item.id, item.likesCount || 0)} />}
         ListHeaderComponent={<FeaturedCreators />}
         showsVerticalScrollIndicator={false}

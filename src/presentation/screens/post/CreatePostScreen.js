@@ -19,11 +19,11 @@ export default function CreatePostScreen() {
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
-      base64: true, // Pastikan opsi base64 aktif
+      base64: true, 
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
