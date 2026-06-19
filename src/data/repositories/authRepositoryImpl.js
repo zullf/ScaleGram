@@ -2,7 +2,9 @@ import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
 import User from '../../domain/entities/User';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase'; 
+import { pushNotificationHelper } from '../../utils/pushNotificationHelper';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
 
 class AuthRepositoryImpl extends AuthRepository {
@@ -37,9 +39,22 @@ class AuthRepositoryImpl extends AuthRepository {
     }
   }
 
+  async _saveDeviceToken(userId) {
+    try {
+      const token = await pushNotificationHelper.getDeviceToken();
+      if (token) {
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, { pushToken: token }, { merge: true });
+      }
+    } catch (error) {
+      console.log('Bypass simpan token: ', error.message);
+    }
+  }
+
   async register(email, password, displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.registerWithEmail(email, password, displayName);
+      await this._saveDeviceToken(firebaseUser.uid);
       return this._mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
@@ -49,6 +64,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async login(email, password) {
     try {
       const firebaseUser = await firebaseAuthDataSource.loginWithEmail(email, password);
+      await this._saveDeviceToken(firebaseUser.uid);
       return this._mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
@@ -58,6 +74,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async googleSignIn(idToken) {
     try {
       const firebaseUser = await firebaseAuthDataSource.googleSignIn(idToken);
+      await this._saveDeviceToken(firebaseUser.uid);
       return this._mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
