@@ -67,6 +67,8 @@ export function useFeed(pageSize = 10) {
     }
   }, [loading, refreshing, loadingMore, hasMore, pageSize, lastVisible, postRepository]);
 
+  const refetch = useCallback(() => fetchPosts(true), [fetchPosts]);
+
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
@@ -79,7 +81,7 @@ export function useFeed(pageSize = 10) {
     loadingMore,
     error,
     hasMore,
-    refetch: () => fetchPosts(true),
+    refetch,
     loadMore
   };
 }

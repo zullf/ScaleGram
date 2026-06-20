@@ -12,10 +12,13 @@ const PURPLE = '#6366F1';
 const PostCard = React.memo(function PostCard({
   post,
   isLiked,
+  isSaved,
   onLikePress,
+  onSavePress,
   onOpenPost,
   onCommentPress,
   onOpenAuthor,
+  onSharePress,
 }) {
   const hasImage = Boolean(post.imageUrl);
   const tags = Array.isArray(post.tags) ? post.tags : [];
@@ -78,10 +81,19 @@ const PostCard = React.memo(function PostCard({
             onPress={onCommentPress}
             style={styles.actionButton}
           />
-          <IconActionButton icon="share-social-outline" style={styles.iconOnlyButton} />
+          <IconActionButton
+            icon="share-social-outline"
+            onPress={onSharePress}
+            style={styles.iconOnlyButton}
+          />
         </View>
 
-        <IconActionButton icon="bookmark-outline" style={styles.iconOnlyButton} />
+        <IconActionButton 
+          icon={isSaved ? "bookmark" : "bookmark-outline"} 
+          color={isSaved ? PURPLE : '#374151'}
+          onPress={onSavePress}
+          style={styles.iconOnlyButton} 
+        />
       </View>
     </View>
   );

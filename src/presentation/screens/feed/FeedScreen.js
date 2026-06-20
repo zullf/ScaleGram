@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Share, StatusBar, StyleSheet, View } from 'react-native';
 
 import { useDependencies } from '../../../app/DependencyProvider';
 import ScreenHeader from '../../components/common/ScreenHeader';
@@ -53,9 +53,64 @@ export default function FeedScreen({ navigation }) {
     }
   };
 
+  const handleSave = async (post) => {
+    if (!user?.id || !post?.id) return;
+
+    const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
+    const alreadySaved = savedBy.includes(user.id);
+    const nextSavedBy = alreadySaved
+      ? savedBy.filter((userId) => userId !== user.id)
+      : [...savedBy, user.id];
+
+    // Optimistic UI Update
+    setPosts((currentPosts) =>
+      currentPosts.map((item) =>
+        item.id === post.id
+          ? { ...item, savedBy: nextSavedBy }
+          : item
+      )
+    );
+
+    try {
+      if (alreadySaved) {
+        await postRepository.unsavePost(post.id, user.id);
+      } else {
+        await postRepository.savePost(post.id, user.id);
+      }
+    } catch (err) {
+      console.error('Error updating save:', err);
+      setPosts((currentPosts) =>
+        currentPosts.map((item) =>
+          item.id === post.id
+            ? { ...item, savedBy }
+            : item
+        )
+      );
+    }
+  };
+
+  const handleShare = async (post) => {
+    if (!post?.id) return;
+
+    try {
+      const captionText = post.caption ? `\n\n"${post.caption}"` : '';
+      const imageText = post.imageUrl ? `\n\n${post.imageUrl}` : '';
+
+      await Share.share({
+        message: `Cek postingan dari ${post.userName || 'seseorang'} di ScaleGram!${captionText}${imageText}`,
+      });
+    } catch (err) {
+      console.error('Error saat membagikan:', err?.message || err);
+    }
+  };
+
   const renderPost = ({ item }) => {
     const likedBy = Array.isArray(item.likedBy) ? item.likedBy : [];
     const isLiked = Boolean(user?.id && likedBy.includes(user.id));
+
+    const savedBy = Array.isArray(item.savedBy) ? item.savedBy : [];
+    const isSaved = Boolean(user?.id && savedBy.includes(user.id));
+
     const openPostDetail = (params = {}) => {
       navigation.getParent()?.navigate('PostDetail', { post: item, ...params });
     };
@@ -78,10 +133,13 @@ export default function FeedScreen({ navigation }) {
       <PostCard
         post={item}
         isLiked={isLiked}
+        isSaved={isSaved} 
         onLikePress={() => handleLike(item)}
+        onSavePress={() => handleSave(item)} 
         onOpenPost={() => openPostDetail()}
         onCommentPress={() => openPostDetail({ focusComments: true })}
         onOpenAuthor={openPublicProfile}
+        onSharePress={() => handleShare(item)}
       />
     );
   };
