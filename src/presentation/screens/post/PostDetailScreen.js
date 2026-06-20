@@ -48,6 +48,20 @@ export default function PostDetailScreen({ navigation, route }) {
     ]);
     setCommentText('');
   };
+  const openPublicProfile = () => {
+    if (post.userId === user?.id) {
+      navigation.navigate('MainTabs', { screen: 'Profile' });
+      return;
+    }
+
+    navigation.navigate('PublicProfile', {
+      user: {
+        id: post.userId,
+        displayName: post.userName,
+        photoURL: post.userAvatar,
+      },
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -68,7 +82,7 @@ export default function PostDetailScreen({ navigation, route }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <PostDetailCard post={displayPost} />
+        <PostDetailCard post={displayPost} onOpenAuthor={openPublicProfile} />
 
         <View
           style={styles.commentsSection}

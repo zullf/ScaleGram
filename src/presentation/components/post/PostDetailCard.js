@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 
 import { timeAgo } from '../../../utils/timeFormat';
@@ -8,17 +8,19 @@ import UserAvatar from '../common/UserAvatar';
 
 const PURPLE = '#6366F1';
 
-export default function PostDetailCard({ post, isLiked, onLikePress }) {
+export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAuthor }) {
   const tags = Array.isArray(post.tags) ? post.tags : [];
 
   return (
     <View style={styles.container}>
       <View style={styles.authorRow}>
-        <UserAvatar name={post.userName} uri={post.userAvatar} size={48} />
-        <View style={styles.authorInfo}>
+        <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
+          <UserAvatar name={post.userName} uri={post.userAvatar} size={48} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.authorInfo} activeOpacity={0.78} onPress={onOpenAuthor}>
           <Text style={styles.userName}>{post.userName || 'User'}</Text>
           <Text style={styles.userHandle}>@{createHandle(post.userName || post.userId)}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}

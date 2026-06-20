@@ -15,6 +15,7 @@ const PostCard = React.memo(function PostCard({
   onLikePress,
   onOpenPost,
   onCommentPress,
+  onOpenAuthor,
 }) {
   const hasImage = Boolean(post.imageUrl);
   const tags = Array.isArray(post.tags) ? post.tags : [];
@@ -22,12 +23,14 @@ const PostCard = React.memo(function PostCard({
   return (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <UserAvatar name={post.userName} uri={post.userAvatar} />
+        <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
+          <UserAvatar name={post.userName} uri={post.userAvatar} />
+        </TouchableOpacity>
 
-        <View style={styles.userInfo}>
+        <TouchableOpacity style={styles.userInfo} activeOpacity={0.78} onPress={onOpenAuthor}>
           <Text style={styles.userName}>{post.userName || 'User'}</Text>
           <Text style={styles.timeText}>{timeAgo(post.createdAt)}</Text>
-        </View>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
           <Ionicons name="ellipsis-horizontal" size={20} color="#111827" />

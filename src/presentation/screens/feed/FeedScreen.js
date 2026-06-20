@@ -59,6 +59,20 @@ export default function FeedScreen({ navigation }) {
     const openPostDetail = (params = {}) => {
       navigation.getParent()?.navigate('PostDetail', { post: item, ...params });
     };
+    const openPublicProfile = () => {
+      if (item.userId === user?.id) {
+        navigation.navigate('Profile');
+        return;
+      }
+
+      navigation.getParent()?.navigate('PublicProfile', {
+        user: {
+          id: item.userId,
+          displayName: item.userName,
+          photoURL: item.userAvatar,
+        },
+      });
+    };
 
     return (
       <PostCard
@@ -67,6 +81,7 @@ export default function FeedScreen({ navigation }) {
         onLikePress={() => handleLike(item)}
         onOpenPost={() => openPostDetail()}
         onCommentPress={() => openPostDetail({ focusComments: true })}
+        onOpenAuthor={openPublicProfile}
       />
     );
   };
