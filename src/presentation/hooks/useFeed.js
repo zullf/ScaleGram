@@ -71,7 +71,9 @@ export function useFeed(pageSize = 10) {
 
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+    // Agar React/ESLint tidak bawel minta dependensi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     posts,

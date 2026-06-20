@@ -7,6 +7,7 @@ import ScreenState from '../../components/common/ScreenState';
 import PostCard from '../../components/feed/PostCard';
 import { useAuthStore } from '../../../store/authStore';
 import { useFeed } from '../../hooks/useFeed';
+import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 
 const PURPLE = '#6366F1';
 
@@ -37,9 +38,9 @@ export default function FeedScreen({ navigation }) {
 
     try {
       if (alreadyLiked) {
-        await postRepository.unlikePost(post.id, user.id);
+        await socialUsecases.unlikePost(user.id, post.id); 
       } else {
-        await postRepository.likePost(post.id, user.id);
+        await socialUsecases.likePost(user.id, post.id);
       }
     } catch (err) {
       console.error('Error updating like:', err);
@@ -112,7 +113,17 @@ export default function FeedScreen({ navigation }) {
     const isSaved = Boolean(user?.id && savedBy.includes(user.id));
 
     const openPostDetail = (params = {}) => {
-      navigation.getParent()?.navigate('PostDetail', { post: item, ...params });
+      navigation.getParent()?.navigate('PostDetail', { 
+        post: item, 
+        ...params,
+        onPostUpdate: (updatedPost) => {
+          setPosts((currentPosts) =>
+            currentPosts.map((p) =>
+              p.id === updatedPost.id ? updatedPost : p
+            )
+          );
+        }
+      });
     };
     const openPublicProfile = () => {
       if (item.userId === user?.id) {

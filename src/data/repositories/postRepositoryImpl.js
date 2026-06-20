@@ -20,7 +20,7 @@ import { mapFirestoreDocToPostEntity } from '../mappers/postMapper';
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycby3eJyYnCPUb31AEGSeTVZKdIAs0E2UDEMi7ybwGYI6HZLZvOUTHpTVBTbWBOCNN1hN/exec";
 
-export function createPostRepository(firebaseDataSource) {
+export function createPostRepository(firebaseDataSource, sqliteDataSource) {
   const { db } = firebaseDataSource;
 
   const getCommentCount = async (postId) => {
@@ -59,9 +59,20 @@ export function createPostRepository(firebaseDataSource) {
         
         const lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
+        if (sqliteDataSource && !lastVisible) {
+           sqliteDataSource.cachePosts(posts, 'feed');
+        }
+
         return { posts, lastDoc };
+
       } catch (error) {
-        console.error("Gagal konek ke Firebase:", error);
+        console.log("Firebase gagal/Offline. Membaca Feed dari brankas SQLite...");
+        
+        if (sqliteDataSource) {
+           const cachedPosts = sqliteDataSource.getCachedPosts('feed');
+           return { posts: cachedPosts, lastDoc: null }; 
+        }
+        
         throw error;
       }
     },
@@ -227,13 +238,23 @@ export function createPostRepository(firebaseDataSource) {
         const snapshot = await getDocs(q);
         
         const posts = snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc));
-        return posts.sort((a, b) => {
+        const sortedPosts = posts.sort((a, b) => {
           const timeA = a.createdAt?.seconds || 0;
           const timeB = b.createdAt?.seconds || 0;
           return timeB - timeA; 
         });
+
+        if (sqliteDataSource) {
+           sqliteDataSource.cachePosts(sortedPosts, 'saved');
+        }
+
+        return sortedPosts;
       } catch (error) {
-        console.error("Error getting saved posts:", error);
+        console.log("Firebase gagal/Offline. Membaca Saved Posts dari brankas SQLite...");
+        
+        if (sqliteDataSource) {
+           return sqliteDataSource.getCachedPosts('saved');
+        }
         throw error;
       }
     },

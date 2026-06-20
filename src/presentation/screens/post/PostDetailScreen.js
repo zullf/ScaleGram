@@ -10,6 +10,8 @@ import { useDependencies } from '../../../app/DependencyProvider';
 import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { useAuthStore } from '../../../store/authStore';
 
+import { socialUsecases } from '../../../domain/usecases/socialUsecases';
+
 const PURPLE = '#6366F1';
 
 export default function PostDetailScreen({ navigation, route }) {
@@ -27,6 +29,52 @@ export default function PostDetailScreen({ navigation, route }) {
   const [commentsError, setCommentsError] = useState(null);
   const commentsCount = comments.length;
   const displayPost = { ...post, commentsCount };
+
+  const [localPost, setLocalPost] = useState(displayPost);
+  const isLiked = Array.isArray(localPost.likedBy) && localPost.likedBy.includes(user?.id);
+
+  const handleLikeToggle = async () => {
+    if (!user?.id || !localPost.id) return;
+
+    const likedBy = Array.isArray(localPost.likedBy) ? localPost.likedBy : [];
+    const alreadyLiked = likedBy.includes(user.id);
+    
+    const nextLikedBy = alreadyLiked
+      ? likedBy.filter((id) => id !== user.id)
+      : [...likedBy, user.id];
+    const nextLikesCount = Math.max((localPost.likesCount || 0) + (alreadyLiked ? -1 : 1), 0);
+
+    const updatedPost = { ...localPost, likedBy: nextLikedBy, likesCount: nextLikesCount };
+    
+    setLocalPost(updatedPost);
+
+    if (route.params?.onPostUpdate) {
+      route.params.onPostUpdate(updatedPost);
+    }
+
+    try {
+      if (alreadyLiked) {
+        await socialUsecases.unlikePost(user.id, localPost.id);
+      } else {
+        await socialUsecases.likePost(user.id, localPost.id);
+      }
+    } catch (err) {
+      console.error('Error toggle like:', err);
+      setLocalPost((prev) => ({ ...prev, likedBy, likesCount: localPost.likesCount }));
+
+      if (route.params?.onPostUpdate) {
+        route.params.onPostUpdate(localPost); 
+      }
+    }
+  };
+
+  const handleCommentPress = () => {
+    scrollRef.current?.scrollTo({ y: commentsTopRef.current, animated: true });
+  };
+
+  const handleSavePress = () => {
+    alert("Fitur Save/Bookmark akan segera hadir!"); 
+  };
 
   const loadComments = useCallback(async () => {
     if (!post.id) {
@@ -82,7 +130,7 @@ export default function PostDetailScreen({ navigation, route }) {
     setCommentText('');
 
     try {
-      const commentId = await postRepository.addComment(post.id, {
+      const commentId = await socialUsecases.addComment(post.id, {
         text,
         userId: user?.id || null,
         userName: user?.displayName || user?.email || 'User',
@@ -96,7 +144,11 @@ export default function PostDetailScreen({ navigation, route }) {
       );
 
       if (user?.id && post.userId && user.id !== post.userId) {
-        await notificationUsecases.createNotification(user.id, post.userId, 'COMMENT', post.id);
+        try {
+          await notificationUsecases.createNotification(user.id, post.userId, 'COMMENT', post.id);
+        } catch (notifErr) {
+          console.log('Gagal trigger real-time notification (mungkin offline):', notifErr);
+        }
       }
     } catch (err) {
       setComments((currentComments) =>
@@ -165,9 +217,13 @@ export default function PostDetailScreen({ navigation, route }) {
       >
 
       <PostDetailCard 
-        post={displayPost} 
+        post={localPost}  
+        isLiked={isLiked} 
+        onLikePress={handleLikeToggle} 
         onOpenAuthor={openPublicProfile} 
         onSharePress={handleShare} 
+        onCommentPress={handleCommentPress} 
+        onSavePress={handleSavePress} 
       />
 
       <View
