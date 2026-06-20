@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authUsecases } from '../domain/usecases/authUsecases';
+import { authRepository } from '../data/repositories/authRepositoryImpl';
 
 export const useAuthStore = create(
   persist(
