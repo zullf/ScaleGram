@@ -5,7 +5,6 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -13,7 +12,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
+import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
 import UserAvatar from '../../components/common/UserAvatar';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -38,6 +39,20 @@ export default function ProfileScreen({ navigation }) {
   const email = user?.email || 'Belum ada user aktif';
   const userPosts = posts.filter((post) => post.userId === user?.id);
   const gridData = activeTab === 'posts' ? userPosts : [];
+
+  const handleProfileSwipe = useCallback((event) => {
+    const { state, translationX } = event.nativeEvent;
+
+    if (state !== State.END) return;
+
+    if (translationX < -45) {
+      setActiveTab('saved');
+    }
+
+    if (translationX > 45) {
+      setActiveTab('posts');
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,60 +115,47 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.tabsRow, { borderTopColor: colors.border || '#E5E7EB', borderBottomColor: colors.border || '#E5E7EB' }]}>
-        {profileTabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-
-          return (
-            <Pressable
-              key={tab.key}
-              style={[styles.tabButton, isActive && styles.activeTabButton]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={20}
-                color={isActive ? PURPLE : colors.mutedText || '#6B7280'}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: isActive ? PURPLE : colors.mutedText || '#6B7280' },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <FlatList
-        data={gridData}
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.gridContent,
-          gridData.length === 0 && styles.emptyGridContent,
-        ]}
-        renderItem={({ item }) => (
-          <PostThumbnail
-            post={item}
-            onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
-          />
-        )}
-        ListEmptyComponent={
-          <ProfileGridEmpty
+      <PanGestureHandler
+        activeOffsetX={[-20, 20]}
+        failOffsetY={[-18, 18]}
+        onHandlerStateChange={handleProfileSwipe}
+      >
+        <View style={styles.contentArea}>
+          <AnimatedProfileTabs
+            tabs={profileTabs}
             activeTab={activeTab}
-            loading={loading && activeTab === 'posts'}
-            error={error}
             colors={colors}
+            onChange={setActiveTab}
           />
-        }
-        onEndReached={activeTab === 'posts' ? loadMore : undefined}
-        onEndReachedThreshold={0.5}
-      />
+
+          <FlatList
+            data={gridData}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.gridContent,
+              gridData.length === 0 && styles.emptyGridContent,
+            ]}
+            renderItem={({ item }) => (
+              <PostThumbnail
+                post={item}
+                onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
+              />
+            )}
+            ListEmptyComponent={
+              <ProfileGridEmpty
+                activeTab={activeTab}
+                loading={loading && activeTab === 'posts'}
+                error={error}
+                colors={colors}
+              />
+            }
+            onEndReached={activeTab === 'posts' ? loadMore : undefined}
+            onEndReachedThreshold={0.5}
+          />
+        </View>
+      </PanGestureHandler>
     </SafeAreaView>
   );
 }
@@ -240,6 +242,9 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 16,
   },
+  contentArea: {
+    flex: 1,
+  },
   profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,28 +304,6 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     fontSize: 13,
-    fontWeight: '800',
-  },
-  tabsRow: {
-    height: 50,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTabButton: {
-    borderBottomColor: PURPLE,
-  },
-  tabText: {
-    fontSize: 12,
     fontWeight: '800',
   },
   gridContent: {

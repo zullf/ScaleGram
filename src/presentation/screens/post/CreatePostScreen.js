@@ -13,14 +13,16 @@ import { useDependencies } from '../../../app/DependencyProvider';
 import { useAuthStore } from '../../../store/authStore';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import CaptionInput from '../../components/post/CaptionInput';
+import FormNoticeModal from '../../components/post/FormNoticeModal';
 import FormSection from '../../components/post/FormSection';
 import MediaUploadBox from '../../components/post/MediaUploadBox';
 import PostFormActions from '../../components/post/PostFormActions';
 import TagEditor from '../../components/post/TagEditor';
+import UploadSuccessModal from '../../components/post/UploadSuccessModal';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
 
-export default function CreatePostScreen() {
+export default function CreatePostScreen({ navigation }) {
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const {
@@ -33,6 +35,9 @@ export default function CreatePostScreen() {
   const [newTag, setNewTag] = useState('');
   const [imageResult, setImageResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successPreview, setSuccessPreview] = useState(null);
+  const [noticeVisible, setNoticeVisible] = useState(false);
   const maxCaptionLength = 2200;
   const maxTags = 5;
 
@@ -68,7 +73,7 @@ export default function CreatePostScreen() {
 
   const handlePublish = async () => {
     if (!imageResult) {
-      Alert.alert('Gagal', 'Silakan pilih gambar terlebih dahulu.');
+      setNoticeVisible(true);
       return;
     }
 
@@ -85,10 +90,16 @@ export default function CreatePostScreen() {
     setLoading(true);
 
     try {
+      const postPreview = {
+        imageUri: imageResult.uri,
+        caption: caption.trim(),
+      };
+
       await postRepository.uploadPost(createPostPayload(), createFilePayload());
 
-      Alert.alert('Sukses', 'Postingan berhasil diunggah!');
+      setSuccessPreview(postPreview);
       resetForm();
+      setSuccessVisible(true);
     } catch (error) {
       Alert.alert('Gagal', error.message || 'Postingan gagal diunggah.');
     } finally {
@@ -115,6 +126,11 @@ export default function CreatePostScreen() {
     setTags([]);
     setNewTag('');
     setImageResult(null);
+  };
+
+  const handleCloseSuccess = () => {
+    setSuccessVisible(false);
+    navigation.navigate('Home');
   };
 
   return (
@@ -169,6 +185,21 @@ export default function CreatePostScreen() {
           />
         </View>
       </ScrollView>
+
+      <UploadSuccessModal
+        visible={successVisible}
+        postPreview={successPreview}
+        colors={colors}
+        onClose={handleCloseSuccess}
+      />
+      <FormNoticeModal
+        visible={noticeVisible}
+        title="Gambar belum dipilih"
+        message="Tambahkan satu gambar terlebih dahulu sebelum postingan dipublikasikan."
+        icon="image-outline"
+        colors={colors}
+        onClose={() => setNoticeVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }

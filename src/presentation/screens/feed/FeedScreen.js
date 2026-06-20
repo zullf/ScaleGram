@@ -53,7 +53,7 @@ export default function FeedScreen({ navigation }) {
     }
   };
 
-  const renderPost = ({ item }) => {
+  const renderPost = ({ item, index }) => {
     const likedBy = Array.isArray(item.likedBy) ? item.likedBy : [];
     const isLiked = Boolean(user?.id && likedBy.includes(user.id));
     const openPostDetail = (params = {}) => {
@@ -77,6 +77,7 @@ export default function FeedScreen({ navigation }) {
     return (
       <PostCard
         post={item}
+        index={index}
         isLiked={isLiked}
         onLikePress={() => handleLike(item)}
         onOpenPost={() => openPostDetail()}

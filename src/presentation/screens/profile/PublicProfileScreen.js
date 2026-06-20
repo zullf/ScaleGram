@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, SafeAreaView, StyleSheet } from 'react-native';
+import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
+import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
 import ProfileGridEmpty from '../../components/profile/ProfileGridEmpty';
 import ProfileHeaderBar from '../../components/profile/ProfileHeaderBar';
 import ProfilePostGridItem from '../../components/profile/ProfilePostGridItem';
@@ -12,11 +14,17 @@ import { useFeed } from '../../hooks/useFeed';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
 
+const profileTabs = [
+  { key: 'posts', label: 'Postingan', icon: 'grid-outline' },
+  { key: 'saved', label: 'Saved', icon: 'bookmark-outline' },
+];
+
 export default function PublicProfileScreen({ navigation, route }) {
   const currentUser = useAuthStore((state) => state.user);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const { posts, loading, error, loadMore } = useFeed(30);
+  const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -25,6 +33,7 @@ export default function PublicProfileScreen({ navigation, route }) {
   const profileUser = useMemo(() => normalizeProfileUser(route.params?.user), [route.params?.user]);
   const isOwnProfile = currentUser?.id === profileUser.id;
   const userPosts = posts.filter((post) => post.userId === profileUser.id);
+  const gridData = activeTab === 'posts' ? userPosts : [];
 
   useEffect(() => {
     if (isOwnProfile) {
@@ -79,6 +88,20 @@ export default function PublicProfileScreen({ navigation, route }) {
     }
   };
 
+  const handleProfileSwipe = useCallback((event) => {
+    const { state, translationX } = event.nativeEvent;
+
+    if (state !== State.END) return;
+
+    if (translationX < -45) {
+      setActiveTab('saved');
+    }
+
+    if (translationX > 45) {
+      setActiveTab('posts');
+    }
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ProfileHeaderBar
@@ -88,46 +111,75 @@ export default function PublicProfileScreen({ navigation, route }) {
         onBack={navigation.goBack}
       />
 
-      <FlatList
-        data={userPosts}
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={
-          <PublicProfileHeader
-            colors={colors}
-            profileUser={profileUser}
-            postsCount={userPosts.length}
-            followersCount={followersCount}
-            followingCount={followingCount}
-            isOwnProfile={isOwnProfile}
-            isFollowing={isFollowing}
-            followLoading={followLoading}
-            onToggleFollow={handleToggleFollow}
+      <PanGestureHandler
+        activeOffsetX={[-20, 20]}
+        failOffsetY={[-18, 18]}
+        onHandlerStateChange={handleProfileSwipe}
+      >
+        <View style={styles.contentArea}>
+          <FlatList
+            data={gridData}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              <>
+                <PublicProfileHeader
+                  colors={colors}
+                  profileUser={profileUser}
+                  postsCount={userPosts.length}
+                  followersCount={followersCount}
+                  followingCount={followingCount}
+                  isOwnProfile={isOwnProfile}
+                  isFollowing={isFollowing}
+                  followLoading={followLoading}
+                  onToggleFollow={handleToggleFollow}
+                />
+                <AnimatedProfileTabs
+                  tabs={profileTabs}
+                  activeTab={activeTab}
+                  colors={colors}
+                  onChange={setActiveTab}
+                />
+              </>
+            }
+            contentContainerStyle={[
+              styles.gridContent,
+              gridData.length === 0 && styles.emptyGridContent,
+            ]}
+            renderItem={({ item }) => (
+              <ProfilePostGridItem
+                post={item}
+                onPress={() => navigation.navigate('PostDetail', { post: item })}
+              />
+            )}
+            ListEmptyComponent={
+              <ProfileGridEmpty
+                loading={loading && activeTab === 'posts'}
+                error={activeTab === 'posts' ? error : null}
+                colors={colors}
+                title={activeTab === 'saved' ? 'Belum ada saved post' : 'Belum ada postingan'}
+                message={
+                  activeTab === 'saved'
+                    ? 'Saved post user lain tidak ditampilkan secara publik.'
+                    : 'Postingan user ini akan tampil di sini.'
+                }
+              />
+            }
+            onEndReached={activeTab === 'posts' ? loadMore : undefined}
+            onEndReachedThreshold={0.5}
           />
-        }
-        contentContainerStyle={[
-          styles.gridContent,
-          userPosts.length === 0 && styles.emptyGridContent,
-        ]}
-        renderItem={({ item }) => (
-          <ProfilePostGridItem
-            post={item}
-            onPress={() => navigation.navigate('PostDetail', { post: item })}
-          />
-        )}
-        ListEmptyComponent={
-          <ProfileGridEmpty loading={loading} error={error} colors={colors} />
-        }
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-      />
+        </View>
+      </PanGestureHandler>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  contentArea: {
     flex: 1,
   },
   gridContent: {

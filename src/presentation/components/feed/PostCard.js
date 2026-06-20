@@ -1,7 +1,8 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { TapGestureHandler } from 'react-native-gesture-handler';
 
 import { timeAgo } from '../../../utils/timeFormat';
 import IconActionButton from '../common/IconActionButton';
@@ -11,6 +12,7 @@ const PURPLE = '#6366F1';
 
 const PostCard = React.memo(function PostCard({
   post,
+  index = 0,
   isLiked,
   onLikePress,
   onOpenPost,
@@ -19,9 +21,67 @@ const PostCard = React.memo(function PostCard({
 }) {
   const hasImage = Boolean(post.imageUrl);
   const tags = Array.isArray(post.tags) ? post.tags : [];
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardTranslateY = useRef(new Animated.Value(18)).current;
+  const likeScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: 260,
+        delay: Math.min(index * 45, 240),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardTranslateY, {
+        toValue: 0,
+        duration: 260,
+        delay: Math.min(index * 45, 240),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [cardOpacity, cardTranslateY, index]);
+
+  const playLikeFeedback = useCallback(() => {
+    Animated.sequence([
+      Animated.spring(likeScale, {
+        toValue: 1.24,
+        friction: 4,
+        tension: 160,
+        useNativeDriver: true,
+      }),
+      Animated.spring(likeScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 160,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [likeScale]);
+
+  const handleLikeInteraction = useCallback(() => {
+    playLikeFeedback();
+    onLikePress?.();
+  }, [onLikePress, playLikeFeedback]);
+
+  const handleMediaDoubleTap = useCallback(() => {
+    playLikeFeedback();
+
+    if (!isLiked) {
+      onLikePress?.();
+    }
+  }, [isLiked, onLikePress, playLikeFeedback]);
 
   return (
-    <View style={styles.postCard}>
+    <Animated.View
+      style={[
+        styles.postCard,
+        {
+          opacity: cardOpacity,
+          transform: [{ translateY: cardTranslateY }],
+        },
+      ]}
+    >
       <View style={styles.postHeader}>
         <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
           <UserAvatar name={post.userName} uri={post.userAvatar} />
@@ -55,23 +115,29 @@ const PostCard = React.memo(function PostCard({
         </View>
       ) : null}
 
-      {hasImage ? (
-        <Image source={{ uri: post.imageUrl }} style={styles.postImage} contentFit="cover" />
-      ) : (
-        <View style={styles.imagePlaceholder}>
-          <Ionicons name="image-outline" size={28} color="#9CA3AF" />
-        </View>
-      )}
+      <TapGestureHandler numberOfTaps={2} maxDelayMs={240} onActivated={handleMediaDoubleTap}>
+        <Animated.View>
+          {hasImage ? (
+            <Image source={{ uri: post.imageUrl }} style={styles.postImage} contentFit="cover" />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={28} color="#9CA3AF" />
+            </View>
+          )}
+        </Animated.View>
+      </TapGestureHandler>
 
       <View style={styles.actionBar}>
         <View style={styles.leftActions}>
-          <IconActionButton
-            icon={isLiked ? 'heart' : 'heart-outline'}
-            label={post.likesCount || 0}
-            color={isLiked ? PURPLE : '#374151'}
-            onPress={onLikePress}
-            style={styles.actionButton}
-          />
+          <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+            <IconActionButton
+              icon={isLiked ? 'heart' : 'heart-outline'}
+              label={post.likesCount || 0}
+              color={isLiked ? PURPLE : '#374151'}
+              onPress={handleLikeInteraction}
+              style={styles.actionButton}
+            />
+          </Animated.View>
           <IconActionButton
             icon="chatbubble-outline"
             label={post.commentsCount || 0}
@@ -83,7 +149,7 @@ const PostCard = React.memo(function PostCard({
 
         <IconActionButton icon="bookmark-outline" style={styles.iconOnlyButton} />
       </View>
-    </View>
+    </Animated.View>
   );
 });
 
