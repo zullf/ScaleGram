@@ -14,6 +14,9 @@ export default class PostRepository {
   async addComment(postId, commentData) {
     throw new Error('Method not implemented');
   }
+  async getComments(postId) {
+    throw new Error('Method not implemented');
+  }
   async searchPosts(searchQuery) {
     throw new Error('Method not implemented');
   }

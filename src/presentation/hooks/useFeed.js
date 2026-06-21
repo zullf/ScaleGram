@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDependencies } from '../../app/DependencyProvider';
 
+function uniquePostsById(posts) {
+  const seen = new Set();
+
+  return posts.filter((post) => {
+    if (!post?.id || seen.has(post.id)) {
+      return false;
+    }
+
+    seen.add(post.id);
+    return true;
+  });
+}
+
 export function useFeed(pageSize = 10) {
   const { repositories: { postRepository } } = useDependencies();
   const [posts, setPosts] = useState([]);
@@ -23,7 +36,7 @@ export function useFeed(pageSize = 10) {
 
     try {
       const { posts: newPosts, lastDoc } = await postRepository.getPosts(pageSize, null);
-      setPosts(newPosts);
+      setPosts(uniquePostsById(newPosts));
       setLastVisible(lastDoc);
       setHasMore(newPosts.length === pageSize);
     } catch (err) {
@@ -35,13 +48,13 @@ export function useFeed(pageSize = 10) {
   }, [pageSize, postRepository]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loading || refreshing || loadingMore || !hasMore || !lastVisible) return;
 
     setLoadingMore(true);
     try {
       const { posts: morePosts, lastDoc } = await postRepository.getPosts(pageSize, lastVisible);
       if (morePosts.length > 0) {
-        setPosts(prev => [...prev, ...morePosts]);
+        setPosts(prev => uniquePostsById([...prev, ...morePosts]));
         setLastVisible(lastDoc);
       }
       if (morePosts.length < pageSize) {
@@ -52,11 +65,15 @@ export function useFeed(pageSize = 10) {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, pageSize, lastVisible, postRepository]);
+  }, [loading, refreshing, loadingMore, hasMore, pageSize, lastVisible, postRepository]);
+
+  const refetch = useCallback(() => fetchPosts(true), [fetchPosts]);
 
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+    // Agar React/ESLint tidak bawel minta dependensi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     posts,
@@ -66,7 +83,7 @@ export function useFeed(pageSize = 10) {
     loadingMore,
     error,
     hasMore,
-    refetch: () => fetchPosts(true),
+    refetch,
     loadMore
   };
 }

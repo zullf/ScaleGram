@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import UserAvatar from '../common/UserAvatar';
 
 const PURPLE = '#6366F1';
 
-export default function CommentComposer({ user, value, onChangeText, onSubmit }) {
-  const disabled = !value.trim();
+export default function CommentComposer({ user, value, loading, onChangeText, onSubmit }) {
+  const disabled = loading || !value.trim();
 
   return (
     <View style={styles.container}>
@@ -19,6 +19,7 @@ export default function CommentComposer({ user, value, onChangeText, onSubmit })
           value={value}
           onChangeText={onChangeText}
           multiline
+          editable={!loading}
         />
         <TouchableOpacity
           style={[styles.replyButton, disabled && styles.replyButtonDisabled]}
@@ -26,7 +27,11 @@ export default function CommentComposer({ user, value, onChangeText, onSubmit })
           disabled={disabled}
           onPress={onSubmit}
         >
-          <Text style={styles.replyButtonText}>Reply</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.replyButtonText}>Reply</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

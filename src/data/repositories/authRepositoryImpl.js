@@ -1,23 +1,14 @@
 import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
-import User from '../../domain/entities/User';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase'; 
 import { pushNotificationHelper } from '../../utils/pushNotificationHelper';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
+import { mapFirebaseUserToEntity } from '../mappers/userMapper';
 
 class AuthRepositoryImpl extends AuthRepository {
   
-  _mapFirebaseUserToEntity(firebaseUser) {
-    return new User({
-      id: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName || 'User',
-      photoURL: firebaseUser.photoURL,
-    });
-  }
-
   _handleFirebaseAuthError(error) {
     switch (error.code) {
       case 'auth/email-already-in-use':
@@ -55,7 +46,7 @@ class AuthRepositoryImpl extends AuthRepository {
     try {
       const firebaseUser = await firebaseAuthDataSource.registerWithEmail(email, password, displayName);
       await this._saveDeviceToken(firebaseUser.uid);
-      return this._mapFirebaseUserToEntity(firebaseUser);
+      return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -65,7 +56,7 @@ class AuthRepositoryImpl extends AuthRepository {
     try {
       const firebaseUser = await firebaseAuthDataSource.loginWithEmail(email, password);
       await this._saveDeviceToken(firebaseUser.uid);
-      return this._mapFirebaseUserToEntity(firebaseUser);
+      return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -75,7 +66,7 @@ class AuthRepositoryImpl extends AuthRepository {
     try {
       const firebaseUser = await firebaseAuthDataSource.googleSignIn(idToken);
       await this._saveDeviceToken(firebaseUser.uid);
-      return this._mapFirebaseUserToEntity(firebaseUser);
+      return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -111,7 +102,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async updateProfile(displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.updateUserProfile(displayName);
-      return this._mapFirebaseUserToEntity(firebaseUser);
+      return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -121,7 +112,7 @@ class AuthRepositoryImpl extends AuthRepository {
     try {
       try {
         GoogleSignin.configure({
-          webClientId: 'KODE_WEB_CLIENT_ID_KAMU.apps.googleusercontent.com', 
+          webClientId: GOOGLE_WEB_CLIENT_ID, 
         });
         
         await GoogleSignin.revokeAccess();

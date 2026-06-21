@@ -24,7 +24,7 @@ const tabIcons = {
     focused: 'add-circle',
     unfocused: 'add-circle-outline',
   },
-  Alerts: {
+  Activity: {
     focused: 'notifications',
     unfocused: 'notifications-outline',
   },
@@ -73,9 +73,9 @@ export default function MainTabs() {
         ),
       })}
     >
-      <Tab.Screen
-        name="Home"
-        component={FeedScreen}
+      <Tab.Screen 
+        name="Home" 
+        component={FeedScreen} 
         options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen
@@ -89,9 +89,9 @@ export default function MainTabs() {
         options={{ tabBarLabel: 'Create' }}
       />
       <Tab.Screen
-        name="Alerts"
+        name="Activity"
         component={NotificationScreen}
-        options={{ tabBarLabel: 'Alerts' }}
+        options={{ tabBarLabel: 'Activity' }}
       />
       <Tab.Screen
         name="Profile"

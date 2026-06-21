@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import MainTabs from './MainTabs';
 import PostDetailScreen from '../screens/post/PostDetailScreen';
+import PublicProfileScreen from '../screens/profile/PublicProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -10,6 +11,7 @@ export default function AppStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
     </Stack.Navigator>
   );
 }
