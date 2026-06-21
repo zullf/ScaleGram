@@ -1,0 +1,33 @@
+name: CI Testing Pipeline
+
+# Robot jalan otomatis saat ada push atau pull request ke branch main/master
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: Run Jest Unit Tests
+    runs-on: ubuntu-latest # GitHub meminjamkan komputer Linux
+
+    steps:
+      # 1. Mengambil kodinganmu dari repositori
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Menyiapkan lingkungan JavaScript
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      # 3. Menginstal semua paket/library
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. Menjalankan skrip tes milikmu
+      - name: Run Jest Tests
+        run: npm run test
