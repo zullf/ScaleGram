@@ -30,8 +30,6 @@ export default function NotificationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [followBackLoadingIds, setFollowBackLoadingIds] = useState({});
-  const [followedBackIds, setFollowedBackIds] = useState({});
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!user?.id) {
@@ -73,25 +71,6 @@ export default function NotificationScreen() {
     [sections]
   );
 
-  const handleFollowBack = useCallback(async (notification) => {
-    const targetUserId = notification.actor?.id || notification.actorId;
-
-    if (!user?.id || !targetUserId || user.id === targetUserId) return;
-
-    setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: true }));
-    setError(null);
-
-    try {
-      await socialUsecases.followUser(user.id, targetUserId);
-      setFollowedBackIds((current) => ({ ...current, [notification.id]: true }));
-    } catch (err) {
-      setError(err.message || 'Gagal follow back.');
-      console.log('Gagal follow back:', err?.message || err);
-    } finally {
-      setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: false }));
-    }
-  }, [user?.id]);
-
   const renderItem = ({ item }) => {
     if (item.type === 'section') {
       return <Text style={styles.sectionTitle}>{item.title}</Text>;
@@ -100,9 +79,6 @@ export default function NotificationScreen() {
     return (
       <NotificationItem
         notification={item}
-        followBackLoading={!!followBackLoadingIds[item.id]}
-        followedBack={!!followedBackIds[item.id]}
-        onFollowBack={handleFollowBack}
       />
     );
   };
@@ -152,16 +128,67 @@ export default function NotificationScreen() {
   );
 }
 
-function NotificationItem({ notification, followBackLoading, followedBack, onFollowBack }) {
-  const actorName = notification.actor?.username || notification.actor?.displayName || 'Pengguna';
+function NotificationItem({ notification }) {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const currentUser = useAuthStore((state) => state.user);
+
+  // Fallback nama yang lebih cerdas (prioritaskan displayName)
+  const actorName = notification.actor?.displayName || notification.actor?.username || notification.actor?.email || 'Pengguna';
+  const actorPhoto = notification.actor?.photoUrl || notification.actor?.profilePic || notification.actor?.photoURL;
   const descriptor = getNotificationDescriptor(notification.type);
+
+  // Mengecek status follow ke database saat komponen pertama kali dimuat
+  const targetUserId = notification.actor?.id || notification.actorId;
+
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (notification.type !== 'FOLLOW') return;
+      
+      if (currentUser?.id && targetUserId) {
+        setIsChecking(true);
+        try {
+          const status = await socialUsecases.checkFollowStatus(currentUser.id, targetUserId);
+          setIsFollowing(status);
+        } catch (error) {
+          console.error("Gagal cek status follow:", error);
+        } finally {
+          setIsChecking(false);
+        }
+      }
+    };
+    
+    checkFollowStatus();
+  }, [currentUser?.id, notification.type, targetUserId]);
+
+  const handlePressFollow = async () => {
+    if (!currentUser?.id || !targetUserId || currentUser.id === targetUserId || isActionLoading) return;
+
+    const nextIsFollowing = !isFollowing;
+    setIsActionLoading(true);
+    setIsFollowing(nextIsFollowing);
+
+    try {
+      if (nextIsFollowing) {
+        await socialUsecases.followUser(currentUser.id, targetUserId);
+      } else {
+        await socialUsecases.unfollowUser(currentUser.id, targetUserId);
+      }
+    } catch (error) {
+      setIsFollowing(!nextIsFollowing);
+      console.error('Gagal toggle follow dari notifikasi:', error);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   return (
     <View style={styles.notificationItem}>
       <View style={styles.avatarWrap}>
         <UserAvatar
           name={actorName}
-          uri={notification.actor?.profilePic || notification.actor?.photoURL}
+          uri={actorPhoto} // Pakai foto yang udah diambil dari backend
           size={46}
         />
         <View style={[styles.typeBadge, { backgroundColor: descriptor.color }]}>
@@ -179,16 +206,16 @@ function NotificationItem({ notification, followBackLoading, followedBack, onFol
 
       {notification.type === 'FOLLOW' ? (
         <TouchableOpacity
-          style={[styles.followBackButton, followedBack && styles.followingButton]}
+          style={[styles.followBackButton, isFollowing && styles.followingButton]}
           activeOpacity={0.78}
-          disabled={followBackLoading || followedBack}
-          onPress={() => onFollowBack(notification)}
+          disabled={isActionLoading || isChecking}
+          onPress={handlePressFollow}
         >
-          {followBackLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+          {isActionLoading || isChecking ? (
+            <ActivityIndicator size="small" color={isFollowing ? PURPLE : '#FFFFFF'} />
           ) : (
-            <Text style={[styles.followBackText, followedBack && styles.followingText]}>
-              {followedBack ? 'Following' : 'Follow back'}
+            <Text style={[styles.followBackText, isFollowing && styles.followingText]}>
+              {isFollowing ? 'Following' : 'Follow back'}
             </Text>
           )}
         </TouchableOpacity>

@@ -141,13 +141,14 @@ export default function ProfileScreen({ navigation }) {
             {email}
           </Text>
           <Text style={[styles.bioText, { color: colors.text || '#111827' }]}>
-            Share moments, save inspiration, and keep your creative feed tidy.
+            {user?.bio || 'Share moments, save inspiration, and keep your creative feed tidy.'}
           </Text>
         </View>
 
         <TouchableOpacity
           style={[styles.editButton, { borderColor: colors.border || '#D1D5DB' }]}
           activeOpacity={0.76}
+          onPress={() => navigation.navigate('EditProfileScreen', { currentUser: user })}
         >
           <Text style={[styles.editButtonText, { color: colors.text || '#111827' }]}>
             Edit Profile

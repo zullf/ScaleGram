@@ -7,7 +7,6 @@ import CommentComposer from '../../components/post/CommentComposer';
 import CommentItem from '../../components/post/CommentItem';
 import PostDetailCard from '../../components/post/PostDetailCard';
 import { useDependencies } from '../../../app/DependencyProvider';
-import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { useAuthStore } from '../../../store/authStore';
 
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
@@ -142,14 +141,6 @@ export default function PostDetailScreen({ navigation, route }) {
           comment.id === localComment.id ? { ...localComment, id: commentId } : comment
         )
       );
-
-      if (user?.id && post.userId && user.id !== post.userId) {
-        try {
-          await notificationUsecases.createNotification(user.id, post.userId, 'COMMENT', post.id);
-        } catch (notifErr) {
-          console.log('Gagal trigger real-time notification (mungkin offline):', notifErr);
-        }
-      }
     } catch (err) {
       setComments((currentComments) =>
         currentComments.filter((comment) => comment.id !== localComment.id)

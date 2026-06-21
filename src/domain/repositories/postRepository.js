@@ -20,4 +20,7 @@ export default class PostRepository {
   async searchPosts(searchQuery) {
     throw new Error('Method not implemented');
   }
+  async searchPostsByTag(tag) {
+    throw new Error('Method not implemented');
+  }
 }

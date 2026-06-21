@@ -1,4 +1,4 @@
-import { doc, writeBatch, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import { doc, writeBatch, collection, query, where, getDocs, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 export const userRepository = {
@@ -108,6 +108,74 @@ export const userRepository = {
       return Array.from(usersMap.values());
     } catch (error) {
       console.error('Error saat mencari user:', error);
+      throw error;
+    }
+  },
+
+  getProfile: async (userId) => {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const docSnap = await getDoc(userRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting profile:', error);
+      throw error;
+    }
+  },
+
+  updateProfile: async (userId, payload = {}) => {
+    try {
+      let finalPhotoUrl = payload.existingPhotoUrl ?? null;
+
+      if (payload.newPhotoBase64) {
+        const GAS_URL = "https://script.google.com/macros/s/AKfycby3eJyYnCPUb31AEGSeTVZKdIAs0E2UDEMi7ybwGYI6HZLZvOUTHpTVBTbWBOCNN1hN/exec"; // Ganti pakai link script GAS lu
+        const response = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({
+            base64: payload.newPhotoBase64,
+            fileName: payload.newPhotoFileName || `profile_${Date.now()}.jpg`,
+            mimeType: payload.newPhotoMimeType || 'image/jpeg',
+          }),
+        });
+        
+        const result = await response.json();
+        const uploadedPhotoUrl = result.imageUrl ?? result.url ?? null;
+
+        if (!uploadedPhotoUrl) {
+          throw new Error('Upload foto profil gagal. URL foto tidak diterima dari server.');
+        }
+
+        finalPhotoUrl = uploadedPhotoUrl; 
+      }
+
+      const rawUpdatedData = {
+        displayName: payload.displayName ?? '', 
+        bio: payload.bio ?? '',
+        photoURL: finalPhotoUrl ?? null,
+        photoUrl: finalPhotoUrl ?? null,
+        updatedAt: new Date(),
+      };
+      const updatedData = Object.fromEntries(
+        Object.entries(rawUpdatedData).filter(([, value]) => value !== undefined)
+      );
+
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, updatedData);
+      const updatedSnap = await getDoc(userRef);
+
+      console.log(`[Profile] ${userId} berhasil update profil`);
+      return updatedSnap.exists()
+        ? { id: updatedSnap.id, ...updatedSnap.data() }
+        : { id: userId, ...updatedData };
+    } catch (error) {
+      console.error('Error updating profile:', error);
       throw error;
     }
   }

@@ -8,6 +8,7 @@ import {
   getCountFromServer,
   addDoc,
   doc,
+  getDoc, 
   where,
   increment,
   writeBatch,
@@ -17,11 +18,22 @@ import {
   arrayRemove     
 } from 'firebase/firestore';
 import { mapFirestoreDocToPostEntity } from '../mappers/postMapper';
+import { notificationRepositoryImpl } from './notificationRepositoryImpl'; 
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycby3eJyYnCPUb31AEGSeTVZKdIAs0E2UDEMi7ybwGYI6HZLZvOUTHpTVBTbWBOCNN1hN/exec";
 
 export function createPostRepository(firebaseDataSource, sqliteDataSource) {
   const { db } = firebaseDataSource;
+
+  const normalizeTags = (tags = []) => {
+    if (!Array.isArray(tags)) return [];
+
+    return [...new Set(
+      tags
+        .map((tag) => String(tag).trim().replace(/^#/, '').toLowerCase())
+        .filter(Boolean)
+    )];
+  };
 
   const getCommentCount = async (postId) => {
     const commentsRef = collection(db, 'posts', postId, 'comments');
@@ -66,6 +78,7 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         return { posts, lastDoc };
 
       } catch (error) {
+        console.error(" ALASAN ASLI FIREBASE GAGAL:", error);
         console.log("Firebase gagal/Offline. Membaca Feed dari brankas SQLite...");
         
         if (sqliteDataSource) {
@@ -98,6 +111,7 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
 
         const docRef = await addDoc(collection(db, 'posts'), {
           ...postData,
+          tags: normalizeTags(postData.tags),
           imageUrl: downloadURL,
           createdAt: new Date(),
           likesCount: 0,
@@ -116,6 +130,7 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
     likePost: async (postId, userId) => {
       try {
         const postRef = doc(db, 'posts', postId);
+        let postOwnerId = null; 
         
         await runTransaction(db, async (transaction) => {
           const postDoc = await transaction.get(postRef);
@@ -124,8 +139,10 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
             throw new Error("Post tidak ditemukan!");
           }
 
-          const currentLikedBy = postDoc.data().likedBy || [];
-          const currentLikesCount = postDoc.data().likesCount || 0;
+          const data = postDoc.data();
+          const currentLikedBy = data.likedBy || [];
+          const currentLikesCount = data.likesCount || 0;
+          postOwnerId = data.userId;
 
           if (!currentLikedBy.includes(userId)) {
             transaction.update(postRef, {
@@ -134,6 +151,20 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
             });
           }
         });
+
+        if (postOwnerId && postOwnerId !== userId) {
+          try {
+            await notificationRepositoryImpl.createNotification(
+              userId,       
+              postOwnerId,  
+              'LIKE',       
+              postId        
+            );
+          } catch (notifErr) {
+            console.error("Gagal kirim notif like:", notifErr);
+          }
+        }
+
       } catch (error) {
         console.error("Error liking post (Transaction):", error);
         throw error;
@@ -170,8 +201,14 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
 
     addComment: async (postId, commentData) => {
       try {
-        const batch = writeBatch(db);
         const postRef = doc(db, 'posts', postId);
+        const postSnap = await getDoc(postRef);
+        let postOwnerId = null;
+        if (postSnap.exists()) {
+          postOwnerId = postSnap.data().userId;
+        }
+
+        const batch = writeBatch(db);
         const commentsRef = collection(db, 'posts', postId, 'comments');
         const commentRef = doc(commentsRef);
 
@@ -184,6 +221,20 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         });
 
         await batch.commit();
+
+        const commentAuthorId = commentData.userId;
+        if (postOwnerId && commentAuthorId && postOwnerId !== commentAuthorId) {
+          try {
+            await notificationRepositoryImpl.createNotification(
+              commentAuthorId, 
+              postOwnerId,     
+              'COMMENT',       
+              postId           
+            );
+          } catch (notifErr) {
+            console.error("Gagal kirim notif comment:", notifErr);
+          }
+        }
 
         return commentRef.id;
       } catch (error) {
@@ -273,6 +324,33 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         );
       } catch (error) {
         console.error('Error searching posts:', error);
+        throw error;
+      }
+    },
+
+    searchPostsByTag: async (tag) => {
+      try {
+        const normalizedTag = String(tag).trim().replace(/^#/, '').toLowerCase();
+
+        if (!normalizedTag) return [];
+
+        const postsRef = collection(db, 'posts');
+        const q = query(
+          postsRef,
+          where('tags', 'array-contains', normalizedTag)
+        );
+        const snapshot = await getDocs(q);
+        const posts = await attachCommentCounts(
+          snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc))
+        );
+
+        return posts.sort((a, b) => {
+          const timeA = a.createdAt?.seconds || a.createdAt?.getTime?.() || 0;
+          const timeB = b.createdAt?.seconds || b.createdAt?.getTime?.() || 0;
+          return timeB - timeA;
+        });
+      } catch (error) {
+        console.error('Error searching posts by tag:', error);
         throw error;
       }
     }
