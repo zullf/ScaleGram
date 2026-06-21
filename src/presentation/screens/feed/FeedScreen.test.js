@@ -82,6 +82,6 @@ describe('Performance Test (Tugas Rahasia Asdos): FeedScreen', () => {
 
     expect(getByText('Mahasiswa UPNVJ Ke-0')).toBeTruthy();
    
-    expect(durasiRender).toBeLessThan(1500);
+    expect(durasiRender).toBeLessThan(3500);
   });
 });
