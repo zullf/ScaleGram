@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserAvatar from '../../components/common/UserAvatar';
 import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
+import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
@@ -29,6 +30,8 @@ export default function NotificationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [followBackLoadingIds, setFollowBackLoadingIds] = useState({});
+  const [followedBackIds, setFollowedBackIds] = useState({});
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!user?.id) {
@@ -70,12 +73,38 @@ export default function NotificationScreen() {
     [sections]
   );
 
+  const handleFollowBack = useCallback(async (notification) => {
+    const targetUserId = notification.actor?.id || notification.actorId;
+
+    if (!user?.id || !targetUserId || user.id === targetUserId) return;
+
+    setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: true }));
+    setError(null);
+
+    try {
+      await socialUsecases.followUser(user.id, targetUserId);
+      setFollowedBackIds((current) => ({ ...current, [notification.id]: true }));
+    } catch (err) {
+      setError(err.message || 'Gagal follow back.');
+      console.log('Gagal follow back:', err?.message || err);
+    } finally {
+      setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: false }));
+    }
+  }, [user?.id]);
+
   const renderItem = ({ item }) => {
     if (item.type === 'section') {
       return <Text style={styles.sectionTitle}>{item.title}</Text>;
     }
 
-    return <NotificationItem notification={item} />;
+    return (
+      <NotificationItem
+        notification={item}
+        followBackLoading={!!followBackLoadingIds[item.id]}
+        followedBack={!!followedBackIds[item.id]}
+        onFollowBack={handleFollowBack}
+      />
+    );
   };
 
   return (
@@ -123,7 +152,7 @@ export default function NotificationScreen() {
   );
 }
 
-function NotificationItem({ notification }) {
+function NotificationItem({ notification, followBackLoading, followedBack, onFollowBack }) {
   const actorName = notification.actor?.username || notification.actor?.displayName || 'Pengguna';
   const descriptor = getNotificationDescriptor(notification.type);
 
@@ -149,8 +178,19 @@ function NotificationItem({ notification }) {
       </View>
 
       {notification.type === 'FOLLOW' ? (
-        <TouchableOpacity style={styles.followBackButton} activeOpacity={0.78}>
-          <Text style={styles.followBackText}>Follow back</Text>
+        <TouchableOpacity
+          style={[styles.followBackButton, followedBack && styles.followingButton]}
+          activeOpacity={0.78}
+          disabled={followBackLoading || followedBack}
+          onPress={() => onFollowBack(notification)}
+        >
+          {followBackLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.followBackText, followedBack && styles.followingText]}>
+              {followedBack ? 'Following' : 'Follow back'}
+            </Text>
+          )}
         </TouchableOpacity>
       ) : null}
     </View>
@@ -363,10 +403,18 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     paddingHorizontal: 14,
   },
+  followingButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: PURPLE,
+    borderWidth: 1,
+  },
   followBackText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  followingText: {
+    color: PURPLE,
   },
   stateContainer: {
     flex: 1,

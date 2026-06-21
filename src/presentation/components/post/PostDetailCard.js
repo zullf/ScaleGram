@@ -8,7 +8,7 @@ import UserAvatar from '../common/UserAvatar';
 
 const PURPLE = '#6366F1';
 
-export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAuthor }) {
+export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAuthor, onSharePress, onCommentPress, onSavePress }) {
   const tags = Array.isArray(post.tags) ? post.tags : [];
 
   return (
@@ -51,7 +51,13 @@ export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAutho
       </View>
 
       <View style={styles.actionRow}>
-        <IconActionButton icon="chatbubble-outline" label={post.commentsCount || 0} style={styles.actionButton} />
+        <IconActionButton 
+          icon="chatbubble-outline" 
+          label={post.commentsCount || 0} 
+          style={styles.actionButton} 
+          onPress={onCommentPress} 
+        />
+ 
         <IconActionButton
           icon={isLiked ? 'heart' : 'heart-outline'}
           label={post.likesCount || 0}
@@ -59,8 +65,14 @@ export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAutho
           onPress={onLikePress}
           style={styles.actionButton}
         />
-        <IconActionButton icon="share-social-outline" style={styles.iconOnlyButton} />
-        <IconActionButton icon="bookmark-outline" style={styles.iconOnlyButton} />
+  
+        <IconActionButton icon="share-social-outline" style={styles.iconOnlyButton} onPress={onSharePress} />
+    
+        <IconActionButton 
+          icon="bookmark-outline" 
+          style={styles.iconOnlyButton} 
+          onPress={onSavePress} 
+        />
       </View>
     </View>
   );

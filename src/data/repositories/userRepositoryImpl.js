@@ -1,4 +1,4 @@
-import { doc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, writeBatch, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 export const userRepository = {
@@ -34,6 +34,40 @@ export const userRepository = {
       console.log(`[Social] ${currentUserId} berhasil unfollow ${targetUserId}`);
     } catch (error) {
       console.error('Error saat unfollow user:', error);
+      throw error;
+    }
+  },
+
+  checkFollowStatus: async (currentUserId, targetUserId) => {
+    try {
+      const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+      const docSnap = await getDoc(followerRef);
+      
+      return docSnap.exists(); 
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      throw error;
+    }
+  },
+
+  getFollowers: async (userId) => {
+    try {
+      const followersRef = collection(db, 'users', userId, 'followers');
+      const snapshot = await getDocs(followersRef);
+      return snapshot.docs.map(doc => doc.id); 
+    } catch (error) {
+      console.error('Error getting followers:', error);
+      throw error;
+    }
+  },
+
+  getFollowing: async (userId) => {
+    try {
+      const followingRef = collection(db, 'users', userId, 'following');
+      const snapshot = await getDocs(followingRef);
+      return snapshot.docs.map(doc => doc.id); 
+    } catch (error) {
+      console.error('Error getting following:', error);
       throw error;
     }
   },

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,11 +16,16 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
 import UserAvatar from '../../components/common/UserAvatar';
+import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
 import { useFeed } from '../../hooks/useFeed';
 import { appThemes } from '../../theme/theme';
 
+import { createPostRepository } from '../../../data/repositories/postRepositoryImpl';
+import { db } from '../../../config/firebase';
+
+const postRepository = createPostRepository({ db });
 const PURPLE = '#6366F1';
 const profileTabs = [
   { key: 'posts', label: 'Postingan', icon: 'grid-outline' },
@@ -33,12 +38,60 @@ export default function ProfileScreen({ navigation }) {
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const { posts, loading, error, refetch, loadMore } = useFeed(30);
+
   const [activeTab, setActiveTab] = useState('posts');
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   const displayName = user?.displayName || 'ScaleGram User';
   const email = user?.email || 'Belum ada user aktif';
   const userPosts = posts.filter((post) => post.userId === user?.id);
-  const gridData = activeTab === 'posts' ? userPosts : [];
+
+  const gridData = activeTab === 'posts' ? userPosts : savedPosts;
+  const currentLoading = activeTab === 'posts' ? loading : loadingSaved;
+
+  const loadSocialStats = useCallback(async () => {
+    if (!user?.id) {
+      setFollowersCount(0);
+      setFollowingCount(0);
+      return;
+    }
+
+    try {
+      const [followers, following] = await Promise.all([
+        socialUsecases.getFollowers(user.id),
+        socialUsecases.getFollowing(user.id),
+      ]);
+
+      setFollowersCount(followers.length);
+      setFollowingCount(following.length);
+    } catch (err) {
+      console.log('Gagal memuat statistik profile:', err?.message || err);
+    }
+  }, [user?.id]);
+
+  const loadSavedPosts = useCallback(async () => {
+    if (!user?.id) return;
+
+    setLoadingSaved(true);
+    try {
+      const fetchedSavedPosts = await postRepository.getSavedPosts(user.id);
+      setSavedPosts(fetchedSavedPosts);
+    } catch (err) {
+      console.log('Gagal memuat saved posts:', err);
+    } finally {
+      setLoadingSaved(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (activeTab === 'saved') {
+      loadSavedPosts();
+    }
+  }, [activeTab, loadSavedPosts]);
 
   const handleProfileSwipe = useCallback((event) => {
     const { state, translationX } = event.nativeEvent;
@@ -57,7 +110,9 @@ export default function ProfileScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [])
+      loadSocialStats();
+      if (activeTab === 'saved') loadSavedPosts();
+    }, [loadSocialStats, refetch, activeTab, loadSavedPosts])
   );
 
   return (
@@ -88,8 +143,8 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.statsRow}>
             <ProfileStat value={String(userPosts.length)} label="Posts" colors={colors} />
-            <ProfileStat value="0" label="Followers" colors={colors} />
-            <ProfileStat value="0" label="Following" colors={colors} />
+            <ProfileStat value={String(followersCount)} label="Followers" colors={colors} />
+            <ProfileStat value={String(followingCount)} label="Following" colors={colors} />
           </View>
         </View>
 
@@ -130,6 +185,7 @@ export default function ProfileScreen({ navigation }) {
 
           <FlatList
             data={gridData}
+            key={activeTab}
             keyExtractor={(item) => item.id}
             numColumns={3}
             showsVerticalScrollIndicator={false}
@@ -146,7 +202,7 @@ export default function ProfileScreen({ navigation }) {
             ListEmptyComponent={
               <ProfileGridEmpty
                 activeTab={activeTab}
-                loading={loading && activeTab === 'posts'}
+                loading={currentLoading}
                 error={error}
                 colors={colors}
               />

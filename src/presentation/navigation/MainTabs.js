@@ -73,9 +73,9 @@ export default function MainTabs() {
         ),
       })}
     >
-      <Tab.Screen
-        name="Home"
-        component={FeedScreen}
+      <Tab.Screen 
+        name="Home" 
+        component={FeedScreen} 
         options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen
