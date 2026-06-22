@@ -18,6 +18,11 @@ export default function FeedScreen({ navigation }) {
   } = useDependencies();
   const user = useAuthStore((state) => state.user);
 
+  const openDrawer = () => {
+    const drawerNavigation = navigation.getParent()?.getParent?.() || navigation.getParent();
+    drawerNavigation?.openDrawer?.();
+  };
+
   const handleLike = async (post) => {
     if (!user?.id || !post?.id) return;
 
@@ -185,7 +190,7 @@ export default function FeedScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScreenHeader showMenu showLogo />
+      <ScreenHeader showMenu showLogo onMenuPress={openDrawer} />
 
       <FlatList
         data={posts}
