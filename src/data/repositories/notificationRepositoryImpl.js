@@ -1,5 +1,35 @@
-import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+
+const DEFAULT_NAMES = new Set(['', 'Pengguna', 'User', 'ScaleGram User']);
+
+function getDisplayName(userData = {}) {
+  const candidates = [
+    userData.displayName,
+    userData.username,
+    userData.userName,
+    userData.email?.split('@')?.[0],
+  ];
+
+  return candidates.find((name) => name && !DEFAULT_NAMES.has(String(name).trim())) || 'ScaleGram User';
+}
+
+function getPhotoUrl(userData = {}) {
+  return userData.photoURL || userData.photoUrl || userData.profilePic || userData.userAvatar || '';
+}
+
+function createNotificationId(actorId, targetUserId, type, referenceId) {
+  return [targetUserId, actorId, type, referenceId || 'profile'].join('_');
+}
+
+function createNotificationKey(notification = {}) {
+  return createNotificationId(
+    notification.actorId || notification.actor?.id,
+    notification.targetUserId,
+    notification.type,
+    notification.referenceId
+  );
+}
 
 class NotificationRepositoryImpl {
   async createNotification(actorId, targetUserId, type, referenceId = null) {
@@ -9,26 +39,26 @@ class NotificationRepositoryImpl {
       const actorRef = doc(db, 'users', actorId);
       const actorSnap = await getDoc(actorRef);
       const actorData = actorSnap.exists() ? actorSnap.data() : {};
-      const actorDisplayName = actorData.displayName || actorData.username || 'Pengguna';
-      const actorPhotoUrl = actorData.photoUrl || actorData.photoURL || actorData.profilePic || '';
 
       const notificationsRef = collection(db, 'notifications');
-      await addDoc(notificationsRef, {
+      const notificationRef = doc(notificationsRef, createNotificationId(actorId, targetUserId, type, referenceId));
+
+      await setDoc(notificationRef, {
         actorId: actorId,
         targetUserId: targetUserId,
         type: type,
         referenceId: referenceId,
         actor: {
           id: actorId,
-          displayName: actorDisplayName,
+          displayName: getDisplayName(actorData),
           username: actorData.username || null,
           email: actorData.email || null,
           bio: actorData.bio || null,
-          photoUrl: actorPhotoUrl
+          photoUrl: getPhotoUrl(actorData)
         },
         isRead: false,
         createdAt: serverTimestamp()
-      });
+      }, { merge: true });
     } catch (error) {
       console.error('Eror internal Firestore Notifikasi:', error.message);
       throw error;
@@ -45,35 +75,43 @@ class NotificationRepositoryImpl {
       
       const querySnapshot = await getDocs(q);
       const rawNotifs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const uniqueNotifs = Array.from(
+        rawNotifs
+          .reduce((map, notif) => {
+            const key = createNotificationKey(notif);
+            if (key && !map.has(key)) {
+              map.set(key, notif);
+            }
+            return map;
+          }, new Map())
+          .values()
+      );
+      const actorCache = new Map();
 
       const populatedNotifs = await Promise.all(
-        rawNotifs.map(async (notif) => {
+        uniqueNotifs.map(async (notif) => {
           let actorData = notif.actor || {};
 
-          if (!actorData.displayName || actorData.displayName === '' || actorData.displayName === 'Pengguna') {
-            const userRef = doc(db, 'users', notif.actorId);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-              const userData = userSnap.data();
-              actorData = {
-                displayName: userData.displayName || userData.username || 'Pengguna',
-                username: userData.username || null,
-                email: userData.email || null,
-                bio: userData.bio || null,
-                photoUrl: userData.photoUrl || userData.photoURL || userData.profilePic || ''
-              };
+          if (notif.actorId) {
+            if (!actorCache.has(notif.actorId)) {
+              const userRef = doc(db, 'users', notif.actorId);
+              const userSnap = await getDoc(userRef);
+              actorCache.set(notif.actorId, userSnap.exists() ? userSnap.data() : null);
             }
+
+            const latestActorData = actorCache.get(notif.actorId);
+            if (latestActorData) actorData = latestActorData;
           }
 
           return {
             ...notif,
             actor: {
               id: notif.actorId,
-              displayName: actorData.displayName || 'Pengguna',
+              displayName: getDisplayName(actorData),
               username: actorData.username || null,
               email: actorData.email || null,
               bio: actorData.bio || null,
-              photoUrl: actorData.photoUrl || actorData.photoURL || actorData.profilePic || ''
+              photoUrl: getPhotoUrl(actorData)
             }
           };
         })

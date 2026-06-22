@@ -1,6 +1,7 @@
 import { createPostRepository } from './postRepositoryImpl';
 import { 
   getDocs, 
+  getDoc,
   getCountFromServer, 
   addDoc, 
   runTransaction, 
@@ -22,11 +23,18 @@ jest.mock('firebase/firestore', () => ({
   arrayUnion: jest.fn(),
   arrayRemove: jest.fn(),
   getDocs: jest.fn(),
+  getDoc: jest.fn(),
   getCountFromServer: jest.fn(),
   addDoc: jest.fn(),
   updateDoc: jest.fn(),
   runTransaction: jest.fn(),
   writeBatch: jest.fn(),
+}));
+
+jest.mock('./notificationRepositoryImpl', () => ({
+  notificationRepositoryImpl: {
+    createNotification: jest.fn(),
+  },
 }));
 
 jest.mock('../mappers/postMapper', () => ({
@@ -57,6 +65,7 @@ describe('Pabrik Pengujian: postRepositoryImpl (Mesin Fotokopi)', () => {
     // Matikan console.log & error biar terminal bersih
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    getDoc.mockResolvedValue({ exists: () => false });
   });
 
   afterAll(() => {

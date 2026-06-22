@@ -9,6 +9,12 @@ export const socialRepositoryImpl = {
 
       const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
       const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+      const existingFollow = await getDoc(followingRef);
+      if (existingFollow.exists()) {
+        console.log(`[Social] ${currentUserId} sudah follow ${targetUserId}`);
+        return;
+      }
+
       batch.set(followingRef, { followedAt: new Date() });
       batch.set(followerRef, { followedAt: new Date() });
 
@@ -44,6 +50,12 @@ export const socialRepositoryImpl = {
 
       const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
       const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+      const existingFollow = await getDoc(followingRef);
+      if (!existingFollow.exists()) {
+        console.log(`[Social] ${currentUserId} belum follow ${targetUserId}`);
+        return;
+      }
+
       batch.delete(followingRef);
       batch.delete(followerRef);
 

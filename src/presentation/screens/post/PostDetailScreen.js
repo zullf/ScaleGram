@@ -15,6 +15,16 @@ import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 
 const PURPLE = '#6366F1';
 
+function getCurrentUserName(user = {}) {
+  return [user.displayName, user.userName, user.username, user.email?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
+}
+
+function getPostAuthorName(post = {}) {
+  return [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
+}
+
 export default function PostDetailScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
@@ -33,6 +43,7 @@ export default function PostDetailScreen({ navigation, route }) {
   const [commentsError, setCommentsError] = useState(null);
   const commentsCount = comments.length;
   const [localPost, setLocalPost] = useState(post);
+  const postAuthorName = getPostAuthorName(localPost);
   const isLiked = Array.isArray(localPost.likedBy) && localPost.likedBy.includes(user?.id);
   const isSaved = Array.isArray(localPost.savedBy) && localPost.savedBy.includes(user?.id);
 
@@ -156,7 +167,7 @@ export default function PostDetailScreen({ navigation, route }) {
       id: `local-${Date.now()}`,
       text,
       userId: user?.id || null,
-      userName: user?.displayName || user?.email || 'User',
+      userName: getCurrentUserName(user),
       userAvatar: user?.photoURL || null,
       createdAt: new Date(),
     };
@@ -170,7 +181,7 @@ export default function PostDetailScreen({ navigation, route }) {
       const commentId = await socialUsecases.addComment(localPost.id, {
         text,
         userId: user?.id || null,
-        userName: user?.displayName || user?.email || 'User',
+        userName: getCurrentUserName(user),
         userAvatar: user?.photoURL || null,
       });
 
@@ -200,7 +211,7 @@ export default function PostDetailScreen({ navigation, route }) {
     navigation.navigate('PublicProfile', {
       user: {
         id: localPost.userId,
-        displayName: localPost.userName,
+        displayName: postAuthorName,
         photoURL: localPost.userAvatar,
       },
     });
@@ -209,7 +220,7 @@ export default function PostDetailScreen({ navigation, route }) {
   const handleShare = async () => {
     try {
       const captionText = localPost.caption ? `\n\n"${localPost.caption}"` : '';
-      const shareMessage = `Cek postingan dari ${localPost.userName || 'seseorang'} di aplikasi kita!${captionText}`;
+      const shareMessage = `Cek postingan dari ${postAuthorName} di aplikasi kita!${captionText}`;
 
       const result = await Share.share({
         message: shareMessage,
@@ -248,7 +259,7 @@ export default function PostDetailScreen({ navigation, route }) {
         <View>
           <Text style={[styles.headerTitle, { color: colors.text || '#111827' }]}>Post</Text>
           <Text style={[styles.headerSubtitle, { color: colors.mutedText || '#6B7280' }]}>
-            {localPost.userName || 'User'}
+            {postAuthorName}
           </Text>
         </View>
       </View>

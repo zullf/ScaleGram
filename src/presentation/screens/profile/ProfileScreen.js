@@ -54,7 +54,7 @@ export default function ProfileScreen({ navigation }) {
 
   const currentProfile = profileUser || user;
   const displayName = currentProfile?.displayName || 'ScaleGram User';
-  const email = currentProfile?.email || 'Belum ada user aktif';
+  const email = currentProfile?.email || null;
   const userPosts = posts.filter((post) => post.userId === user?.id);
   const followersCount = followers.length;
   const followingCount = following.length;
@@ -199,9 +199,11 @@ export default function ProfileScreen({ navigation }) {
           <Text style={[styles.displayName, { color: colors.text || '#111827' }]}>
             {displayName}
           </Text>
-          <Text style={[styles.emailText, { color: colors.mutedText || '#6B7280' }]} numberOfLines={1}>
-            {email}
-          </Text>
+          {email ? (
+            <Text style={[styles.emailText, { color: colors.mutedText || '#6B7280' }]} numberOfLines={1}>
+              {email}
+            </Text>
+          ) : null}
           <Text style={[styles.bioText, { color: colors.text || '#111827' }]}>
             {currentProfile?.bio || 'Share moments, save inspiration, and keep your creative feed tidy.'}
           </Text>

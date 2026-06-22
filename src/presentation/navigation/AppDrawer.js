@@ -25,10 +25,22 @@ import { useThemeStore } from '../../store/themeStore';
 const PURPLE = '#6366F1';
 
 export default function AppDrawer() {
+  return <AppDrawerNavigator />;
+}
+
+export function AppDrawerNavigator({ initialScreen = 'MainTabs', screens }) {
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activeScreen, setActiveScreen] = useState('MainTabs');
+  const [activeScreen, setActiveScreen] = useState(initialScreen);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
+  const screenComponents = useMemo(
+    () => ({
+      MainTabs,
+      OfflineCenter: OfflineCenterScreen,
+      ...screens,
+    }),
+    [screens]
+  );
 
   const drawerController = useMemo(
     () => ({
@@ -47,24 +59,21 @@ export default function AppDrawer() {
     [activeScreen]
   );
 
-  const renderContent = () => {
-    if (activeScreen === 'OfflineCenter') {
-      return <OfflineCenterScreen navigation={localNavigation} />;
-    }
-
-    return <MainTabs />;
-  };
+  const renderContent = useMemo(() => {
+    const ActiveComponent = screenComponents[activeScreen] || screenComponents.MainTabs;
+    return <ActiveComponent navigation={localNavigation} />;
+  }, [activeScreen, localNavigation, screenComponents]);
 
   return (
     <DrawerControllerProvider value={drawerController}>
       <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
-        {renderContent()}
+        {renderContent}
         <MinimalDrawer
           visible={drawerVisible}
           colors={colors}
           onClose={drawerController.closeDrawer}
           onNavigate={(screenName) => {
-            setActiveScreen(screenName);
+            setActiveScreen(screenComponents[screenName] ? screenName : 'MainTabs');
             setDrawerVisible(false);
           }}
         />

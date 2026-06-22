@@ -1,4 +1,4 @@
-import { doc, writeBatch, collection, query, where, getDocs, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch, collection, query, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 export const userRepository = {
@@ -167,7 +167,7 @@ export const userRepository = {
       );
 
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, updatedData);
+      await setDoc(userRef, updatedData, { merge: true });
       const updatedSnap = await getDoc(userRef);
 
       console.log(`[Profile] ${userId} berhasil update profil`);

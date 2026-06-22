@@ -1,13 +1,30 @@
 import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase'; 
 import { pushNotificationHelper } from '../../utils/pushNotificationHelper';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { mapFirebaseUserToEntity } from '../mappers/userMapper';
 
 class AuthRepositoryImpl extends AuthRepository {
+  async _syncUserDocument(firebaseUser) {
+    if (!firebaseUser?.uid) return;
+
+    const displayName =
+      firebaseUser.displayName ||
+      firebaseUser.email?.split('@')?.[0] ||
+      'ScaleGram User';
+
+    await setDoc(doc(db, 'users', firebaseUser.uid), {
+      email: firebaseUser.email || null,
+      displayName,
+      photoURL: firebaseUser.photoURL || null,
+      photoUrl: firebaseUser.photoURL || null,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+
   
   _handleFirebaseAuthError(error) {
     switch (error.code) {
@@ -45,6 +62,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async register(email, password, displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.registerWithEmail(email, password, displayName);
+      await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
       return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
@@ -55,6 +73,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async login(email, password) {
     try {
       const firebaseUser = await firebaseAuthDataSource.loginWithEmail(email, password);
+      await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
       return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
@@ -65,6 +84,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async googleSignIn(idToken) {
     try {
       const firebaseUser = await firebaseAuthDataSource.googleSignIn(idToken);
+      await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
       return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
@@ -102,6 +122,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async updateProfile(displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.updateUserProfile(displayName);
+      await this._syncUserDocument(firebaseUser);
       return mapFirebaseUserToEntity(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);

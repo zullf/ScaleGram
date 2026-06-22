@@ -51,6 +51,45 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
     );
   };
 
+  const resolveProfileName = (profile = {}, fallback = {}) => {
+    const defaultNames = new Set(['', 'Pengguna', 'User', 'ScaleGram User']);
+    const candidates = [
+      profile.displayName,
+      profile.username,
+      profile.userName,
+      fallback.userName,
+      profile.email?.split('@')?.[0],
+      fallback.email?.split('@')?.[0],
+    ];
+
+    return candidates.find((name) => name && !defaultNames.has(String(name).trim())) || 'ScaleGram User';
+  };
+
+  const resolveProfilePhoto = (profile = {}, fallback = {}) => {
+    return profile.photoURL || profile.photoUrl || profile.profilePic || profile.userAvatar || fallback.userAvatar || null;
+  };
+
+  const attachAuthorProfiles = async (posts) => {
+    const userIds = [...new Set(posts.map((post) => post.userId).filter(Boolean))];
+    const profileEntries = await Promise.all(
+      userIds.map(async (userId) => {
+        const userSnap = await getDoc(doc(db, 'users', userId));
+        return [userId, userSnap.exists() ? userSnap.data() : null];
+      })
+    );
+    const profilesById = new Map(profileEntries);
+
+    return posts.map((post) => {
+      const latestProfile = profilesById.get(post.userId) || {};
+
+      return {
+        ...post,
+        userName: resolveProfileName(latestProfile, post),
+        userAvatar: resolveProfilePhoto(latestProfile, post),
+      };
+    });
+  };
+
   return {
     getPosts: async (pageSize = 10, lastVisible = null) => {
       try {
@@ -65,9 +104,9 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         }
 
         const snapshot = await getDocs(q);
-        const posts = await attachCommentCounts(
+        const posts = await attachAuthorProfiles(await attachCommentCounts(
           snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc))
-        );
+        ));
         
         const lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
@@ -97,10 +136,12 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
 
         if (!postSnap.exists()) return null;
 
-        return {
+        const [post] = await attachAuthorProfiles([{
           ...mapFirestoreDocToPostEntity(postSnap),
           commentsCount: await getCommentCount(postId),
-        };
+        }]);
+
+        return post;
       } catch (error) {
         console.error('Error getting post by id:', error);
         throw error;
@@ -148,6 +189,7 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
       try {
         const postRef = doc(db, 'posts', postId);
         let postOwnerId = null; 
+        let didLike = false;
         
         await runTransaction(db, async (transaction) => {
           const postDoc = await transaction.get(postRef);
@@ -166,10 +208,11 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
               likesCount: currentLikesCount + 1,
               likedBy: [...currentLikedBy, userId]
             });
+            didLike = true;
           }
         });
 
-        if (postOwnerId && postOwnerId !== userId) {
+        if (didLike && postOwnerId && postOwnerId !== userId) {
           try {
             await notificationRepositoryImpl.createNotification(
               userId,       
@@ -265,8 +308,25 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         const commentsRef = collection(db, 'posts', postId, 'comments');
         const q = query(commentsRef, orderBy('createdAt', 'desc'));
         const snapshot = await getDocs(q);
-        
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const userIds = [...new Set(comments.map((comment) => comment.userId).filter(Boolean))];
+        const profileEntries = await Promise.all(
+          userIds.map(async (userId) => {
+            const userSnap = await getDoc(doc(db, 'users', userId));
+            return [userId, userSnap.exists() ? userSnap.data() : null];
+          })
+        );
+        const profilesById = new Map(profileEntries);
+
+        return comments.map((comment) => {
+          const latestProfile = profilesById.get(comment.userId) || {};
+
+          return {
+            ...comment,
+            userName: resolveProfileName(latestProfile, comment),
+            userAvatar: resolveProfilePhoto(latestProfile, comment),
+          };
+        });
       } catch (error) {
         console.error("Error getting comments:", error);
         throw error;
@@ -305,7 +365,7 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         );
         const snapshot = await getDocs(q);
         
-        const posts = snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc));
+        const posts = await attachAuthorProfiles(snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc)));
         const sortedPosts = posts.sort((a, b) => {
           const timeA = a.createdAt?.seconds || 0;
           const timeB = b.createdAt?.seconds || 0;
@@ -336,9 +396,9 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
           where('caption', '<=', searchQuery + '\uf8ff')
         );
         const snapshot = await getDocs(q);
-        return attachCommentCounts(
+        return attachAuthorProfiles(await attachCommentCounts(
           snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc))
-        );
+        ));
       } catch (error) {
         console.error('Error searching posts:', error);
         throw error;
@@ -357,9 +417,9 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
           where('tags', 'array-contains', normalizedTag)
         );
         const snapshot = await getDocs(q);
-        const posts = await attachCommentCounts(
+        const posts = await attachAuthorProfiles(await attachCommentCounts(
           snapshot.docs.map(doc => mapFirestoreDocToPostEntity(doc))
-        );
+        ));
 
         return posts.sort((a, b) => {
           const timeA = a.createdAt?.seconds || a.createdAt?.getTime?.() || 0;

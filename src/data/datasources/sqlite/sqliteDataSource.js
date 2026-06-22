@@ -68,6 +68,21 @@ export const createSQLiteDataSource = (dbName = 'scalegram.db') => {
       }
     },
 
+    getCachedPostEntries: () => {
+      try {
+        return db.getAllSync('SELECT id, category, data_json, savedAt FROM posts ORDER BY savedAt DESC')
+          .map((row) => ({
+            id: row.id,
+            category: row.category || 'feed',
+            savedAt: row.savedAt,
+            post: JSON.parse(row.data_json),
+          }));
+      } catch (err) {
+        console.error("Gagal ambil daftar cache:", err);
+        return [];
+      }
+    },
+
     addActionToQueue: (actionType, payload) => {
       const statement = db.prepareSync(
         'INSERT INTO action_queue (id, actionType, payload, status, createdAt) VALUES ($id, $actionType, $payload, $status, $createdAt)'

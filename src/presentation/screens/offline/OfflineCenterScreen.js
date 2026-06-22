@@ -1,41 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { useDependencies } from '../../../app/DependencyProvider';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
 
 const PURPLE = '#6366F1';
-
-const cachedContent = [
-  {
-    id: 'cached-1',
-    category: 'Feed cache',
-    title: 'Campus life photo drop',
-    description: 'Saved thumbnail and caption for offline browsing.',
-    imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400',
-  },
-  {
-    id: 'cached-2',
-    category: 'Saved post',
-    title: 'Design inspiration board',
-    description: 'Compressed preview available without connection.',
-    imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400',
-  },
-  {
-    id: 'cached-3',
-    category: 'Profile media',
-    title: 'Offline profile snapshot',
-    description: 'Recent profile grid data stored locally.',
-    imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
-  },
-];
-
-const pendingSync = [
-  { id: 'pending-1', title: 'Comment pending', meta: 'Waiting for stable connection', icon: 'chatbubble-ellipses-outline' },
-  { id: 'pending-2', title: 'Like pending', meta: 'Queued in optimistic update queue', icon: 'heart-outline' },
-  { id: 'pending-3', title: 'Draft post pending', meta: 'Ready for background sync', icon: 'cloud-upload-outline' },
-];
 
 const tips = [
   'Images are automatically compressed for offline viewing.',
@@ -46,6 +19,25 @@ const tips = [
 export default function OfflineCenterScreen({ navigation }) {
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
+  const { dataSources: { sqlite } } = useDependencies();
+  const [cachedContent, setCachedContent] = useState([]);
+  const [pendingSync, setPendingSync] = useState([]);
+  const [lastSync, setLastSync] = useState(null);
+
+  const loadOfflineData = useCallback(() => {
+    const cacheEntries = sqlite.getCachedPostEntries?.() || [];
+    const pendingActions = sqlite.getPendingActions?.() || [];
+
+    setCachedContent(cacheEntries.map(mapCachedEntry));
+    setPendingSync(pendingActions.map(mapPendingAction));
+    setLastSync(cacheEntries[0]?.savedAt || null);
+  }, [sqlite]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadOfflineData();
+    }, [loadOfflineData])
+  );
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -85,18 +77,18 @@ export default function OfflineCenterScreen({ navigation }) {
                     Sync Status
                   </Text>
                   <Text style={[styles.statusTitle, { color: colors.text || '#111827' }]}>
-                    All data up to date
+                    {pendingSync.length > 0 ? `${pendingSync.length} action pending` : 'All data up to date'}
                   </Text>
                 </View>
               </View>
               <View style={styles.statusMetaRow}>
                 <Text style={[styles.lastSyncText, { color: colors.mutedText || '#6B7280' }]}>
-                  Last Sync: 2 mins ago
+                  Last Cache: {lastSync ? formatSavedAt(lastSync) : 'No cached data'}
                 </Text>
-                <Text style={styles.progressText}>100%</Text>
+                <Text style={styles.progressText}>{pendingSync.length > 0 ? 'Queued' : '100%'}</Text>
               </View>
               <View style={styles.progressTrack}>
-                <View style={styles.progressFill} />
+                <View style={[styles.progressFill, pendingSync.length > 0 && styles.progressQueued]} />
               </View>
             </View>
 
@@ -107,7 +99,13 @@ export default function OfflineCenterScreen({ navigation }) {
         }
         renderItem={({ item }) => (
           <View style={[styles.cachedItem, { backgroundColor: colors.card || '#FFFFFF' }]}>
-            <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
+            ) : (
+              <View style={styles.thumbnailPlaceholder}>
+                <Ionicons name="image-outline" size={22} color={PURPLE} />
+              </View>
+            )}
             <View style={styles.cachedBody}>
               <Text style={styles.categoryText}>{item.category}</Text>
               <Text style={[styles.itemTitle, { color: colors.text || '#111827' }]} numberOfLines={1}>
@@ -119,12 +117,20 @@ export default function OfflineCenterScreen({ navigation }) {
             </View>
           </View>
         )}
+        ListEmptyComponent={
+          <View style={[styles.emptyCard, { backgroundColor: colors.card || '#FFFFFF' }]}>
+            <Ionicons name="cloud-offline-outline" size={24} color={PURPLE} />
+            <Text style={[styles.emptyText, { color: colors.mutedText || '#6B7280' }]}>
+              Belum ada cache offline.
+            </Text>
+          </View>
+        }
         ListFooterComponent={
           <>
             <Text style={[styles.sectionTitle, { color: colors.text || '#111827' }]}>
               Pending Sync
             </Text>
-            {pendingSync.map((item) => (
+            {pendingSync.length > 0 ? pendingSync.map((item) => (
               <View key={item.id} style={[styles.pendingItem, { backgroundColor: colors.card || '#FFFFFF' }]}>
                 <View style={styles.pendingIconWrap}>
                   <Ionicons name={item.icon} size={20} color={PURPLE} />
@@ -139,7 +145,14 @@ export default function OfflineCenterScreen({ navigation }) {
                 </View>
                 <Ionicons name="sync-outline" size={18} color="#9CA3AF" />
               </View>
-            ))}
+            )) : (
+              <View style={[styles.emptyCard, { backgroundColor: colors.card || '#FFFFFF' }]}>
+                <Ionicons name="checkmark-circle-outline" size={24} color={PURPLE} />
+                <Text style={[styles.emptyText, { color: colors.mutedText || '#6B7280' }]}>
+                  Tidak ada aksi tertunda.
+                </Text>
+              </View>
+            )}
 
             <View style={[styles.tipsCard, { backgroundColor: colors.card || '#FFFFFF' }]}>
               <Text style={[styles.tipsTitle, { color: colors.text || '#111827' }]}>
@@ -159,6 +172,54 @@ export default function OfflineCenterScreen({ navigation }) {
       />
     </SafeAreaView>
   );
+}
+
+function mapCachedEntry(entry) {
+  const post = entry.post || {};
+  const authorName = [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || null;
+  const categoryLabels = {
+    feed: 'Feed cache',
+    saved: 'Saved post',
+    profile: 'Profile media',
+  };
+
+  return {
+    id: `${entry.category}-${entry.id}`,
+    category: categoryLabels[entry.category] || entry.category || 'Cache',
+    title: post.caption || authorName || 'Cached post',
+    description: authorName ? `Postingan dari ${authorName}` : 'Tersimpan untuk mode offline.',
+    imageUrl: post.imageUrl || null,
+  };
+}
+
+function mapPendingAction(action) {
+  const icons = {
+    COMMENT: 'chatbubble-ellipses-outline',
+    LIKE: 'heart-outline',
+    UNLIKE: 'heart-dislike-outline',
+    FOLLOW: 'person-add-outline',
+    UNFOLLOW: 'person-remove-outline',
+  };
+
+  return {
+    id: action.id,
+    title: `${action.actionType || 'Action'} pending`,
+    meta: action.createdAt ? `Queued ${formatSavedAt(action.createdAt)}` : 'Waiting for sync',
+    icon: icons[action.actionType] || 'sync-outline',
+  };
+}
+
+function formatSavedAt(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'recently';
+
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 const cardShadow = {
@@ -257,6 +318,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: PURPLE,
   },
+  progressQueued: {
+    width: '64%',
+  },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '900',
@@ -275,6 +339,14 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 14,
     backgroundColor: '#EEF2FF',
+  },
+  thumbnailPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    backgroundColor: '#EEF2FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cachedBody: {
     flex: 1,
@@ -319,6 +391,20 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     marginLeft: 12,
+  },
+  emptyCard: {
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    marginBottom: 10,
+    ...cardShadow,
+  },
+  emptyText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 10,
   },
   tipsCard: {
     borderRadius: 20,

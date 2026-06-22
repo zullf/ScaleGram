@@ -22,6 +22,11 @@ import UploadSuccessModal from '../../components/post/UploadSuccessModal';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
 
+function getAuthorName(user = {}) {
+  return [user.displayName, user.userName, user.username, user.email?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
+}
+
 export default function CreatePostScreen({ navigation }) {
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
@@ -111,7 +116,7 @@ export default function CreatePostScreen({ navigation }) {
     caption: caption.trim(),
     tags,
     userId: user.id,
-    userName: user.displayName || user.email || 'User',
+    userName: getAuthorName(user),
     userAvatar: user.photoURL || null,
   });
 

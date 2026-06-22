@@ -1,7 +1,10 @@
 export function normalizeProfileUser(user = {}) {
+  const displayName = [user.displayName, user.userName, user.username, user.email?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim()));
+
   return {
     id: user.id || user.userId,
-    displayName: user.displayName || user.userName || 'ScaleGram User',
+    displayName: displayName || 'ScaleGram User',
     photoURL: user.photoURL || user.photoUrl || user.profilePic || user.userAvatar || null,
     email: user.email || null,
     bio: user.bio || null,

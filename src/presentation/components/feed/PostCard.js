@@ -25,6 +25,8 @@ const PostCard = React.memo(function PostCard({
 }) {
   const hasImage = Boolean(post.imageUrl);
   const tags = Array.isArray(post.tags) ? post.tags : [];
+  const authorName = [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
   const cardOpacity = useRef(new Animated.Value(0)).current;
   const cardTranslateY = useRef(new Animated.Value(18)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
@@ -90,12 +92,12 @@ const PostCard = React.memo(function PostCard({
     >
       <View style={styles.postHeader}>
         <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
-          <UserAvatar name={post.userName} uri={post.userAvatar} />
+          <UserAvatar name={authorName} uri={post.userAvatar} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.userInfo} activeOpacity={0.78} onPress={onOpenAuthor}>
           <Text style={[styles.userName, { color: colors.text || '#111827' }]}>
-            {post.userName || 'User'}
+            {authorName}
           </Text>
           <Text style={[styles.timeText, { color: colors.mutedText || '#6B7280' }]}>
             {timeAgo(post.createdAt)}

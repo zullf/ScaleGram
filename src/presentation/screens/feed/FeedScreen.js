@@ -14,6 +14,11 @@ import { useThemeStore } from '../../../store/themeStore';
 
 const PURPLE = '#6366F1';
 
+function getPostAuthorName(post = {}) {
+  return [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
+}
+
 export default function FeedScreen({ navigation }) {
   const { posts, setPosts, loading, refreshing, loadingMore, error, refetch, loadMore } = useFeed();
   const {
@@ -104,7 +109,7 @@ export default function FeedScreen({ navigation }) {
       const imageText = post.imageUrl ? `\n\n${post.imageUrl}` : '';
 
       await Share.share({
-        message: `Cek postingan dari ${post.userName || 'seseorang'} di ScaleGram!${captionText}${imageText}`,
+        message: `Cek postingan dari ${getPostAuthorName(post)} di ScaleGram!${captionText}${imageText}`,
       });
     } catch (err) {
       console.error('Error saat membagikan:', err?.message || err);
@@ -140,7 +145,7 @@ export default function FeedScreen({ navigation }) {
       navigation.getParent()?.navigate('PublicProfile', {
         user: {
           id: item.userId,
-          displayName: item.userName,
+          displayName: getPostAuthorName(item),
           photoURL: item.userAvatar,
         },
       });

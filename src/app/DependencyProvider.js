@@ -22,6 +22,7 @@ export default function DependencyProvider({ children }) {
     const userDataSource = createUserFirebaseDataSource(db);
     const localStorage = createAsyncStorageDataSource();
     const sqlite = createSQLiteDataSource('scalegram.db');
+    sqlite.initDB();
 
     return {
       firebase: {

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -24,11 +24,23 @@ import { appThemes } from '../../theme/theme';
 const PURPLE = '#6366F1';
 
 export default function NotificationScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const { repositories: { postRepository } } = useDependencies();
+
+  return (
+    <NotificationScreenContent
+      navigation={navigation}
+      user={user}
+      colors={colors}
+      postRepository={postRepository}
+    />
+  );
+}
+
+export function NotificationScreenContent({ navigation, user, colors, postRepository }) {
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -114,7 +126,7 @@ export default function NotificationScreen({ navigation }) {
     }
   }, [navigation, openActorProfile, postRepository]);
 
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     if (item.type === 'section') {
       return <Text style={[styles.sectionTitle, { color: colors.text || '#111827' }]}>{item.title}</Text>;
     }
@@ -128,7 +140,7 @@ export default function NotificationScreen({ navigation }) {
         onOpenTarget={() => openNotificationTarget(item)}
       />
     );
-  };
+  }, [colors, openActorProfile, openNotificationTarget, openingPostId]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -175,13 +187,13 @@ export default function NotificationScreen({ navigation }) {
   );
 }
 
-function NotificationItem({ notification, colors, opening, onOpenActor, onOpenTarget }) {
+const NotificationItem = React.memo(function NotificationItem({ notification, colors, opening, onOpenActor, onOpenTarget }) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const currentUser = useAuthStore((state) => state.user);
   const actor = normalizeNotificationActor(notification);
-  const actorName = actor.displayName || actor.email || 'Pengguna';
+  const actorName = actor.displayName || actor.email?.split('@')?.[0] || 'ScaleGram User';
   const actorPhoto = actor.photoURL;
   const descriptor = getNotificationDescriptor(notification.type);
   const targetUserId = actor.id || notification.actorId;
@@ -282,7 +294,7 @@ function NotificationItem({ notification, colors, opening, onOpenActor, onOpenTa
       )}
     </View>
   );
-}
+});
 
 function ActivityState({ loading, error, onRetry, colors }) {
   if (loading) {

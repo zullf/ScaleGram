@@ -20,6 +20,8 @@ export default function PostDetailCard({
   colors = {},
 }) {
   const tags = Array.isArray(post.tags) ? post.tags : [];
+  const authorName = [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
 
   return (
     <View
@@ -33,14 +35,14 @@ export default function PostDetailCard({
     >
       <View style={styles.authorRow}>
         <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
-          <UserAvatar name={post.userName} uri={post.userAvatar} size={48} />
+          <UserAvatar name={authorName} uri={post.userAvatar} size={48} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.authorInfo} activeOpacity={0.78} onPress={onOpenAuthor}>
           <Text style={[styles.userName, { color: colors.text || '#111827' }]}>
-            {post.userName || 'User'}
+            {authorName}
           </Text>
           <Text style={[styles.userHandle, { color: colors.mutedText || '#6B7280' }]}>
-            @{createHandle(post.userName || post.userId)}
+            @{createHandle(authorName || post.userId)}
           </Text>
         </TouchableOpacity>
       </View>

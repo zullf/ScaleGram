@@ -5,6 +5,9 @@ import { timeAgo } from '../../../utils/timeFormat';
 import UserAvatar from '../common/UserAvatar';
 
 export default function CommentItem({ comment, colors = {} }) {
+  const displayName = [comment.userName, comment.displayName, comment.email?.split('@')?.[0]]
+    .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
+
   return (
     <View
       style={[
@@ -15,10 +18,10 @@ export default function CommentItem({ comment, colors = {} }) {
         },
       ]}
     >
-      <UserAvatar name={comment.userName} uri={comment.userAvatar} size={38} />
+      <UserAvatar name={displayName} uri={comment.userAvatar} size={38} />
       <View style={styles.content}>
         <View style={styles.metaRow}>
-          <Text style={[styles.userName, { color: colors.text || '#111827' }]}>{comment.userName || 'User'}</Text>
+          <Text style={[styles.userName, { color: colors.text || '#111827' }]}>{displayName}</Text>
           <Text style={[styles.timeText, { color: colors.mutedText || '#6B7280' }]}>{timeAgo(comment.createdAt)}</Text>
         </View>
         <Text style={[styles.body, { color: colors.text || '#111827' }]}>{comment.text}</Text>
