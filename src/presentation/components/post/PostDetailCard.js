@@ -8,22 +8,45 @@ import UserAvatar from '../common/UserAvatar';
 
 const PURPLE = '#6366F1';
 
-export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAuthor, onSharePress, onCommentPress, onSavePress }) {
+export default function PostDetailCard({
+  post,
+  isLiked,
+  onLikePress,
+  onOpenAuthor,
+  onSharePress,
+  onCommentPress,
+  onSavePress,
+  colors = {},
+}) {
   const tags = Array.isArray(post.tags) ? post.tags : [];
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.card || '#FFFFFF',
+          borderBottomColor: colors.border || '#E5E7EB',
+        },
+      ]}
+    >
       <View style={styles.authorRow}>
         <TouchableOpacity activeOpacity={0.78} onPress={onOpenAuthor}>
           <UserAvatar name={post.userName} uri={post.userAvatar} size={48} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.authorInfo} activeOpacity={0.78} onPress={onOpenAuthor}>
-          <Text style={styles.userName}>{post.userName || 'User'}</Text>
-          <Text style={styles.userHandle}>@{createHandle(post.userName || post.userId)}</Text>
+          <Text style={[styles.userName, { color: colors.text || '#111827' }]}>
+            {post.userName || 'User'}
+          </Text>
+          <Text style={[styles.userHandle, { color: colors.mutedText || '#6B7280' }]}>
+            @{createHandle(post.userName || post.userId)}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
+      {post.caption ? (
+        <Text style={[styles.caption, { color: colors.text || '#111827' }]}>{post.caption}</Text>
+      ) : null}
 
       {tags.length > 0 ? (
         <View style={styles.tagsRow}>
@@ -39,14 +62,24 @@ export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAutho
         <Image source={{ uri: post.imageUrl }} style={styles.postImage} contentFit="cover" />
       ) : null}
 
-      <Text style={styles.timestamp}>{timeAgo(post.createdAt)}</Text>
+      <Text style={[styles.timestamp, { color: colors.mutedText || '#6B7280' }]}>
+        {timeAgo(post.createdAt)}
+      </Text>
 
-      <View style={styles.statsRow}>
-        <Text style={styles.statText}>
-          <Text style={styles.statValue}>{post.likesCount || 0}</Text> Likes
+      <View
+        style={[
+          styles.statsRow,
+          {
+            borderTopColor: colors.border || '#E5E7EB',
+            borderBottomColor: colors.border || '#E5E7EB',
+          },
+        ]}
+      >
+        <Text style={[styles.statText, { color: colors.mutedText || '#6B7280' }]}>
+          <Text style={[styles.statValue, { color: colors.text || '#111827' }]}>{post.likesCount || 0}</Text> Likes
         </Text>
-        <Text style={styles.statText}>
-          <Text style={styles.statValue}>{post.commentsCount || 0}</Text> Comments
+        <Text style={[styles.statText, { color: colors.mutedText || '#6B7280' }]}>
+          <Text style={[styles.statValue, { color: colors.text || '#111827' }]}>{post.commentsCount || 0}</Text> Comments
         </Text>
       </View>
 
@@ -54,6 +87,7 @@ export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAutho
         <IconActionButton 
           icon="chatbubble-outline" 
           label={post.commentsCount || 0} 
+          color={colors.text || '#374151'}
           style={styles.actionButton} 
           onPress={onCommentPress} 
         />
@@ -61,15 +95,21 @@ export default function PostDetailCard({ post, isLiked, onLikePress, onOpenAutho
         <IconActionButton
           icon={isLiked ? 'heart' : 'heart-outline'}
           label={post.likesCount || 0}
-          color={isLiked ? PURPLE : '#374151'}
+          color={isLiked ? PURPLE : colors.text || '#374151'}
           onPress={onLikePress}
           style={styles.actionButton}
         />
   
-        <IconActionButton icon="share-social-outline" style={styles.iconOnlyButton} onPress={onSharePress} />
+        <IconActionButton
+          icon="share-social-outline"
+          color={colors.text || '#374151'}
+          style={styles.iconOnlyButton}
+          onPress={onSharePress}
+        />
     
         <IconActionButton 
           icon="bookmark-outline" 
+          color={colors.text || '#374151'}
           style={styles.iconOnlyButton} 
           onPress={onSavePress} 
         />
@@ -87,8 +127,6 @@ function createHandle(value) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
     paddingHorizontal: 20,
     paddingTop: 18,
@@ -103,18 +141,15 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   userName: {
-    color: '#111827',
     fontSize: 17,
     fontWeight: '800',
   },
   userHandle: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 2,
   },
   caption: {
-    color: '#111827',
     fontSize: 20,
     lineHeight: 29,
     marginTop: 18,
@@ -138,7 +173,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   timestamp: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 16,
@@ -146,20 +180,16 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: 18,
-    borderTopColor: '#E5E7EB',
     borderTopWidth: 1,
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
     paddingVertical: 12,
     marginTop: 16,
   },
   statText: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '600',
   },
   statValue: {
-    color: '#111827',
     fontWeight: '800',
   },
   actionRow: {

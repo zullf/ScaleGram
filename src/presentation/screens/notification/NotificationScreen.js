@@ -94,7 +94,7 @@ export default function NotificationScreen() {
 
   const renderItem = ({ item }) => {
     if (item.type === 'section') {
-      return <Text style={styles.sectionTitle}>{item.title}</Text>;
+      return <Text style={[styles.sectionTitle, { color: colors.text || '#111827' }]}>{item.title}</Text>;
     }
 
     return (
@@ -103,6 +103,7 @@ export default function NotificationScreen() {
         followBackLoading={!!followBackLoadingIds[item.id]}
         followedBack={!!followedBackIds[item.id]}
         onFollowBack={handleFollowBack}
+        colors={colors}
       />
     );
   };
@@ -116,11 +117,12 @@ export default function NotificationScreen() {
             height: 56 + insets.top,
             paddingTop: insets.top,
             borderBottomColor: colors.border || '#E5E7EB',
+            backgroundColor: colors.card || '#FFFFFF',
           },
         ]}
       >
         <View style={styles.headerSide} />
-        <Text style={styles.headerTitle}>Activity</Text>
+        <Text style={[styles.headerTitle, { color: colors.primary || PURPLE }]}>Activity</Text>
         <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.72}>
           <Ionicons name="search-outline" size={22} color={PURPLE} />
         </TouchableOpacity>
@@ -133,6 +135,7 @@ export default function NotificationScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
+          { backgroundColor: colors.background || '#FCF8FF' },
           listData.length === 0 && styles.emptyListContent,
         ]}
         refreshControl={
@@ -144,42 +147,56 @@ export default function NotificationScreen() {
           />
         }
         ListEmptyComponent={
-          <ActivityState loading={loading} error={error} onRetry={() => fetchNotifications()} />
+          <ActivityState loading={loading} error={error} onRetry={() => fetchNotifications()} colors={colors} />
         }
-        ListFooterComponent={listData.length > 0 ? <ActivityFooter /> : null}
+        ListFooterComponent={listData.length > 0 ? <ActivityFooter colors={colors} /> : null}
       />
     </SafeAreaView>
   );
 }
 
-function NotificationItem({ notification, followBackLoading, followedBack, onFollowBack }) {
+function NotificationItem({ notification, followBackLoading, followedBack, onFollowBack, colors }) {
   const actorName = notification.actor?.username || notification.actor?.displayName || 'Pengguna';
   const descriptor = getNotificationDescriptor(notification.type);
 
   return (
-    <View style={styles.notificationItem}>
+    <View style={[styles.notificationItem, { backgroundColor: colors.background || '#FCF8FF' }]}>
       <View style={styles.avatarWrap}>
         <UserAvatar
           name={actorName}
           uri={notification.actor?.profilePic || notification.actor?.photoURL}
           size={46}
         />
-        <View style={[styles.typeBadge, { backgroundColor: descriptor.color }]}>
+        <View
+          style={[
+            styles.typeBadge,
+            {
+              backgroundColor: descriptor.color,
+              borderColor: colors.background || '#FCF8FF',
+            },
+          ]}
+        >
           <Ionicons name={descriptor.badgeIcon} size={11} color="#FFFFFF" />
         </View>
       </View>
 
       <View style={styles.notificationBody}>
-        <Text style={styles.notificationText}>
+        <Text style={[styles.notificationText, { color: colors.text || '#1D1B26' }]}>
           <Text style={styles.actorName}>{actorName}</Text>
           {descriptor.message}
         </Text>
-        <Text style={styles.timeText}>{timeAgo(notification.createdAt)}</Text>
+        <Text style={[styles.timeText, { color: colors.mutedText || '#6B7280' }]}>
+          {timeAgo(notification.createdAt)}
+        </Text>
       </View>
 
       {notification.type === 'FOLLOW' ? (
         <TouchableOpacity
-          style={[styles.followBackButton, followedBack && styles.followingButton]}
+          style={[
+            styles.followBackButton,
+            followedBack && styles.followingButton,
+            followedBack && { backgroundColor: colors.card || '#FFFFFF' },
+          ]}
           activeOpacity={0.78}
           disabled={followBackLoading || followedBack}
           onPress={() => onFollowBack(notification)}
@@ -197,7 +214,7 @@ function NotificationItem({ notification, followBackLoading, followedBack, onFol
   );
 }
 
-function ActivityState({ loading, error, onRetry }) {
+function ActivityState({ loading, error, onRetry, colors }) {
   if (loading) {
     return (
       <View style={styles.stateContainer}>
@@ -209,8 +226,10 @@ function ActivityState({ loading, error, onRetry }) {
   return (
     <View style={styles.stateContainer}>
       <Ionicons name={error ? 'alert-circle-outline' : 'notifications-outline'} size={36} color={PURPLE} />
-      <Text style={styles.stateTitle}>{error ? 'Gagal memuat aktivitas' : 'Belum ada aktivitas'}</Text>
-      <Text style={styles.stateMessage}>
+      <Text style={[styles.stateTitle, { color: colors.text || '#111827' }]}>
+        {error ? 'Gagal memuat aktivitas' : 'Belum ada aktivitas'}
+      </Text>
+      <Text style={[styles.stateMessage, { color: colors.mutedText || '#6B7280' }]}>
         {error || 'Notifikasi dari follow, like, dan komentar akan muncul di sini.'}
       </Text>
       {error ? (
@@ -222,11 +241,13 @@ function ActivityState({ loading, error, onRetry }) {
   );
 }
 
-function ActivityFooter() {
+function ActivityFooter({ colors }) {
   return (
     <View style={styles.footer}>
-      <Ionicons name="refresh-circle-outline" size={34} color="#B7B1C9" />
-      <Text style={styles.footerText}>that&apos;s all your activity for the week.</Text>
+      <Ionicons name="refresh-circle-outline" size={34} color={colors.mutedText || '#B7B1C9'} />
+      <Text style={[styles.footerText, { color: colors.mutedText || '#A8A2B8' }]}>
+        that&apos;s all your activity for the week.
+      </Text>
     </View>
   );
 }
@@ -311,7 +332,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,13 +356,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 104,
-    backgroundColor: '#FCF8FF',
   },
   emptyListContent: {
     flexGrow: 1,
   },
   sectionTitle: {
-    color: '#1D1B26',
     fontSize: 18,
     fontWeight: '800',
     paddingHorizontal: 20,
@@ -355,7 +373,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#FCF8FF',
   },
   avatarWrap: {
     width: 52,
@@ -370,7 +387,6 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#FCF8FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -379,7 +395,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   notificationText: {
-    color: '#1D1B26',
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
@@ -388,7 +403,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   timeText: {
-    color: '#6B7280',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 3,
@@ -423,13 +437,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   stateTitle: {
-    color: '#111827',
     fontSize: 16,
     fontWeight: '800',
     marginTop: 12,
   },
   stateMessage: {
-    color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 6,
@@ -453,7 +465,6 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   footerText: {
-    color: '#A8A2B8',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,

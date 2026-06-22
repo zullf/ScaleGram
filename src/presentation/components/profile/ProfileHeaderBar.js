@@ -13,6 +13,7 @@ export default function ProfileHeaderBar({ title, subtitle, colors = {}, onBack 
           height: 56 + insets.top,
           paddingTop: insets.top,
           borderBottomColor: colors.border || '#E5E7EB',
+          backgroundColor: colors.card || '#FFFFFF',
         },
       ]}
     >
@@ -37,7 +38,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
   },
   backButton: {
     width: 42,

@@ -9,6 +9,8 @@ import PostDetailCard from '../../components/post/PostDetailCard';
 import { useDependencies } from '../../../app/DependencyProvider';
 import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { useAuthStore } from '../../../store/authStore';
+import { appThemes } from '../../theme/theme';
+import { useThemeStore } from '../../../store/themeStore';
 
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 
@@ -22,6 +24,8 @@ export default function PostDetailScreen({ navigation, route }) {
   const focusComments = route.params?.focusComments;
   const { repositories: { postRepository } } = useDependencies();
   const user = useAuthStore((state) => state.user);
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
@@ -197,15 +201,30 @@ export default function PostDetailScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.card || '#FFFFFF'}
+      />
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            height: 56 + insets.top,
+            backgroundColor: colors.card || '#FFFFFF',
+            borderBottomColor: colors.border || '#E5E7EB',
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.backButton} activeOpacity={0.72} onPress={navigation.goBack}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color={colors.text || '#111827'} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Post</Text>
-          <Text style={styles.headerSubtitle}>{post.userName || 'User'}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text || '#111827' }]}>Post</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.mutedText || '#6B7280' }]}>
+            {post.userName || 'User'}
+          </Text>
         </View>
       </View>
 
@@ -224,18 +243,19 @@ export default function PostDetailScreen({ navigation, route }) {
         onSharePress={handleShare} 
         onCommentPress={handleCommentPress} 
         onSavePress={handleSavePress} 
+        colors={colors}
       />
 
       <View
-        style={styles.commentsSection}
+        style={[styles.commentsSection, { backgroundColor: colors.card || '#FFFFFF' }]}
         onLayout={(event) => {
           commentsTopRef.current = event.nativeEvent.layout.y;
         }}
       >
 
-      <View style={styles.commentsHeader}>
-        <Text style={styles.commentsTitle}>Comments</Text>
-        <Text style={styles.commentsCount}>{commentsCount}</Text>
+      <View style={[styles.commentsHeader, { borderBottomColor: colors.border || '#E5E7EB' }]}>
+        <Text style={[styles.commentsTitle, { color: colors.text || '#111827' }]}>Comments</Text>
+        <Text style={[styles.commentsCount, { color: colors.mutedText || '#6B7280' }]}>{commentsCount}</Text>
       </View>
 
       <CommentComposer
@@ -244,6 +264,7 @@ export default function PostDetailScreen({ navigation, route }) {
         loading={commentSubmitting}
         onChangeText={setCommentText}
         onSubmit={handleAddComment}
+        colors={colors}
       />
 
       {commentsLoading ? (
@@ -251,12 +272,14 @@ export default function PostDetailScreen({ navigation, route }) {
           <ActivityIndicator size="small" color={PURPLE} />
         </View>
       ) : comments.length > 0 ? (
-        comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
+        comments.map((comment) => <CommentItem key={comment.id} comment={comment} colors={colors} />)
       ) : (
         <View style={styles.emptyComments}>
           <Ionicons name="chatbubble-ellipses-outline" size={30} color={PURPLE} />
-          <Text style={styles.emptyTitle}>Belum ada komentar</Text>
-          <Text style={styles.emptyMessage}>Jadilah yang pertama membalas postingan ini.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text || '#111827' }]}>Belum ada komentar</Text>
+          <Text style={[styles.emptyMessage, { color: colors.mutedText || '#6B7280' }]}>
+            Jadilah yang pertama membalas postingan ini.
+          </Text>
         </View>
     )}
 
@@ -270,11 +293,8 @@ export default function PostDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -289,12 +309,10 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   headerTitle: {
-    color: '#111827',
     fontSize: 17,
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: '#6B7280',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 1,
@@ -306,7 +324,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   commentsSection: {
-    backgroundColor: '#FFFFFF',
   },
   commentsHeader: {
     minHeight: 52,
@@ -314,16 +331,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
   },
   commentsTitle: {
-    color: '#111827',
     fontSize: 16,
     fontWeight: '800',
   },
   commentsCount: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -345,13 +359,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyTitle: {
-    color: '#111827',
     fontSize: 15,
     fontWeight: '800',
     marginTop: 10,
   },
   emptyMessage: {
-    color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,

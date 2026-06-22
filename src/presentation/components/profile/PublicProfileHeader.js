@@ -20,9 +20,9 @@ export default function PublicProfileHeader({
 }) {
   return (
     <View>
-      <View style={styles.profileSection}>
+      <View style={[styles.profileSection, { backgroundColor: colors.card || '#FFFFFF' }]}>
         <View style={styles.profileTopRow}>
-          <View style={styles.avatarRing}>
+          <View style={[styles.avatarRing, { backgroundColor: colors.card || '#FFFFFF' }]}>
             <UserAvatar name={profileUser.displayName} uri={profileUser.photoURL} size={86} />
           </View>
 
@@ -57,7 +57,16 @@ export default function PublicProfileHeader({
         ) : null}
       </View>
 
-      <View style={styles.postsTab}>
+      <View
+        style={[
+          styles.postsTab,
+          {
+            backgroundColor: colors.card || '#FFFFFF',
+            borderTopColor: colors.border || '#E5E7EB',
+            borderBottomColor: colors.border || '#E5E7EB',
+          },
+        ]}
+      >
         <Ionicons name="grid-outline" size={20} color={PURPLE} />
         <Text style={styles.postsTabText}>Postingan</Text>
       </View>
@@ -71,7 +80,10 @@ function FollowButton({ colors, isFollowing, loading, onPress }) {
       style={[
         styles.followButton,
         isFollowing && styles.followingButton,
-        { borderColor: isFollowing ? colors.border || '#D1D5DB' : PURPLE },
+        {
+          borderColor: isFollowing ? colors.border || '#D1D5DB' : PURPLE,
+          backgroundColor: isFollowing ? colors.card || '#FFFFFF' : PURPLE,
+        },
       ]}
       activeOpacity={0.78}
       disabled={loading}
@@ -93,7 +105,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
   },
   profileTopRow: {
     flexDirection: 'row',
@@ -107,7 +118,6 @@ const styles = StyleSheet.create({
     borderColor: PURPLE,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
   statsRow: {
     flex: 1,
@@ -142,7 +152,6 @@ const styles = StyleSheet.create({
     backgroundColor: PURPLE,
   },
   followingButton: {
-    backgroundColor: '#FFFFFF',
   },
   followButtonText: {
     color: '#FFFFFF',
@@ -154,15 +163,12 @@ const styles = StyleSheet.create({
   },
   postsTab: {
     height: 50,
-    borderTopColor: '#E5E7EB',
     borderTopWidth: 1,
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    backgroundColor: '#FFFFFF',
   },
   postsTabText: {
     color: PURPLE,

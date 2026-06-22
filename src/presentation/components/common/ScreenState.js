@@ -11,22 +11,27 @@ export default function ScreenState({
   message,
   actionLabel,
   onAction,
+  colors = {},
 }) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color={PURPLE} />
+        <ActivityIndicator size="large" color={colors.primary || PURPLE} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={34} color={PURPLE} />
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Ionicons name={icon} size={34} color={colors.primary || PURPLE} />
+      <Text style={[styles.title, { color: colors.text || '#111827' }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.mutedText || '#6B7280' }]}>{message}</Text>
       {actionLabel ? (
-        <TouchableOpacity style={styles.button} activeOpacity={0.75} onPress={onAction}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.primary || PURPLE }]}
+          activeOpacity={0.75}
+          onPress={onAction}
+        >
           <Text style={styles.buttonText}>{actionLabel}</Text>
         </TouchableOpacity>
       ) : null}

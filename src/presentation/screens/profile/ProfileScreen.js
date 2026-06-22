@@ -124,6 +124,7 @@ export default function ProfileScreen({ navigation }) {
             height: 56 + insets.top,
             paddingTop: insets.top,
             borderBottomColor: colors.border || '#E5E7EB',
+            backgroundColor: colors.card || '#FFFFFF',
           },
         ]}
       >
@@ -135,9 +136,9 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.profileSection}>
+        <View style={[styles.profileSection, { backgroundColor: colors.card || '#FFFFFF' }]}>
         <View style={styles.profileTopRow}>
-          <View style={styles.avatarRing}>
+          <View style={[styles.avatarRing, { backgroundColor: colors.card || '#FFFFFF' }]}>
             <UserAvatar name={displayName} uri={user?.photoURL} size={86} />
           </View>
 
@@ -313,7 +314,6 @@ const styles = StyleSheet.create({
     borderColor: PURPLE,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
   statsRow: {
     flex: 1,

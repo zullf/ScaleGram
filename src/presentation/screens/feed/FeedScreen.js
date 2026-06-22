@@ -5,9 +5,12 @@ import { useDependencies } from '../../../app/DependencyProvider';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import ScreenState from '../../components/common/ScreenState';
 import PostCard from '../../components/feed/PostCard';
+import { useDrawerController } from '../../navigation/DrawerController';
 import { useAuthStore } from '../../../store/authStore';
 import { useFeed } from '../../hooks/useFeed';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
+import { appThemes } from '../../theme/theme';
+import { useThemeStore } from '../../../store/themeStore';
 
 const PURPLE = '#6366F1';
 
@@ -17,11 +20,9 @@ export default function FeedScreen({ navigation }) {
     repositories: { postRepository },
   } = useDependencies();
   const user = useAuthStore((state) => state.user);
-
-  const openDrawer = () => {
-    const drawerNavigation = navigation.getParent()?.getParent?.() || navigation.getParent();
-    drawerNavigation?.openDrawer?.();
-  };
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
+  const { openDrawer } = useDrawerController();
 
   const handleLike = async (post) => {
     if (!user?.id || !post?.id) return;
@@ -157,13 +158,14 @@ export default function FeedScreen({ navigation }) {
         onCommentPress={() => openPostDetail({ focusComments: true })}
         onOpenAuthor={openPublicProfile}
         onSharePress={() => handleShare(item)}
+        colors={colors}
       />
     );
   };
 
   const renderEmpty = () => {
     if (loading) {
-      return <ScreenState loading />;
+      return <ScreenState loading colors={colors} />;
     }
 
     if (error) {
@@ -174,6 +176,7 @@ export default function FeedScreen({ navigation }) {
           message={error}
           actionLabel="Coba lagi"
           onAction={refetch}
+          colors={colors}
         />
       );
     }
@@ -183,14 +186,18 @@ export default function FeedScreen({ navigation }) {
         icon="images-outline"
         title="Belum ada postingan"
         message="Postingan dari backend akan muncul di sini setelah berhasil dibuat."
+        colors={colors}
       />
     );
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScreenHeader showMenu showLogo onMenuPress={openDrawer} />
+    <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.card || '#FFFFFF'}
+      />
+      <ScreenHeader showMenu showLogo onMenuPress={openDrawer} colors={colors} />
 
       <FlatList
         data={posts}
@@ -219,7 +226,6 @@ export default function FeedScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   feedContent: {
     paddingBottom: 104,
