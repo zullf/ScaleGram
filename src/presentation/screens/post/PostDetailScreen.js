@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Share} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Share} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,8 +7,9 @@ import CommentComposer from '../../components/post/CommentComposer';
 import CommentItem from '../../components/post/CommentItem';
 import PostDetailCard from '../../components/post/PostDetailCard';
 import { useDependencies } from '../../../app/DependencyProvider';
-import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { useAuthStore } from '../../../store/authStore';
+import { appThemes } from '../../theme/theme';
+import { useThemeStore } from '../../../store/themeStore';
 
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 
@@ -22,16 +23,22 @@ export default function PostDetailScreen({ navigation, route }) {
   const focusComments = route.params?.focusComments;
   const { repositories: { postRepository } } = useDependencies();
   const user = useAuthStore((state) => state.user);
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [saveSubmitting, setSaveSubmitting] = useState(false);
   const [commentsError, setCommentsError] = useState(null);
   const commentsCount = comments.length;
-  const displayPost = { ...post, commentsCount };
-
-  const [localPost, setLocalPost] = useState(displayPost);
+  const [localPost, setLocalPost] = useState(post);
   const isLiked = Array.isArray(localPost.likedBy) && localPost.likedBy.includes(user?.id);
+  const isSaved = Array.isArray(localPost.savedBy) && localPost.savedBy.includes(user?.id);
+
+  useEffect(() => {
+    setLocalPost(post);
+  }, [post]);
 
   const handleLikeToggle = async () => {
     if (!user?.id || !localPost.id) return;
@@ -72,12 +79,42 @@ export default function PostDetailScreen({ navigation, route }) {
     scrollRef.current?.scrollTo({ y: commentsTopRef.current, animated: true });
   };
 
-  const handleSavePress = () => {
-    alert("Fitur Save/Bookmark akan segera hadir!"); 
+  const handleSavePress = async () => {
+    if (!user?.id || !localPost.id || saveSubmitting) return;
+
+    const savedBy = Array.isArray(localPost.savedBy) ? localPost.savedBy : [];
+    const alreadySaved = savedBy.includes(user.id);
+    const nextSavedBy = alreadySaved
+      ? savedBy.filter((savedUserId) => savedUserId !== user.id)
+      : [...savedBy, user.id];
+    const updatedPost = { ...localPost, savedBy: nextSavedBy };
+
+    setSaveSubmitting(true);
+    setLocalPost(updatedPost);
+
+    if (route.params?.onPostUpdate) {
+      route.params.onPostUpdate(updatedPost);
+    }
+
+    try {
+      if (alreadySaved) {
+        await postRepository.unsavePost(localPost.id, user.id);
+      } else {
+        await postRepository.savePost(localPost.id, user.id);
+      }
+    } catch (err) {
+      setLocalPost((prev) => ({ ...prev, savedBy }));
+      if (route.params?.onPostUpdate) {
+        route.params.onPostUpdate(localPost);
+      }
+      Alert.alert('Gagal', err.message || 'Gagal memperbarui saved post.');
+    } finally {
+      setSaveSubmitting(false);
+    }
   };
 
   const loadComments = useCallback(async () => {
-    if (!post.id) {
+    if (!localPost.id) {
       setComments([]);
       setCommentsLoading(false);
       return;
@@ -87,7 +124,7 @@ export default function PostDetailScreen({ navigation, route }) {
     setCommentsError(null);
 
     try {
-      const result = await postRepository.getComments(post.id);
+      const result = await postRepository.getComments(localPost.id);
       setComments(result);
     } catch (err) {
       setCommentsError(err.message || 'Gagal memuat komentar.');
@@ -95,7 +132,7 @@ export default function PostDetailScreen({ navigation, route }) {
     } finally {
       setCommentsLoading(false);
     }
-  }, [post.id, postRepository]);
+  }, [localPost.id, postRepository]);
 
   useEffect(() => {
     loadComments();
@@ -113,7 +150,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
   const handleAddComment = async () => {
     const text = commentText.trim();
-    if (!text || !post.id || commentSubmitting) return;
+    if (!text || !localPost.id || commentSubmitting) return;
 
     const localComment = {
       id: `local-${Date.now()}`,
@@ -130,7 +167,7 @@ export default function PostDetailScreen({ navigation, route }) {
     setCommentText('');
 
     try {
-      const commentId = await socialUsecases.addComment(post.id, {
+      const commentId = await socialUsecases.addComment(localPost.id, {
         text,
         userId: user?.id || null,
         userName: user?.displayName || user?.email || 'User',
@@ -142,14 +179,6 @@ export default function PostDetailScreen({ navigation, route }) {
           comment.id === localComment.id ? { ...localComment, id: commentId } : comment
         )
       );
-
-      if (user?.id && post.userId && user.id !== post.userId) {
-        try {
-          await notificationUsecases.createNotification(user.id, post.userId, 'COMMENT', post.id);
-        } catch (notifErr) {
-          console.log('Gagal trigger real-time notification (mungkin offline):', notifErr);
-        }
-      }
     } catch (err) {
       setComments((currentComments) =>
         currentComments.filter((comment) => comment.id !== localComment.id)
@@ -163,24 +192,24 @@ export default function PostDetailScreen({ navigation, route }) {
   };
 
   const openPublicProfile = () => {
-    if (post.userId === user?.id) {
+    if (localPost.userId === user?.id) {
       navigation.navigate('MainTabs', { screen: 'Profile' });
       return;
     }
 
     navigation.navigate('PublicProfile', {
       user: {
-        id: post.userId,
-        displayName: post.userName,
-        photoURL: post.userAvatar,
+        id: localPost.userId,
+        displayName: localPost.userName,
+        photoURL: localPost.userAvatar,
       },
     });
   };
 
   const handleShare = async () => {
     try {
-      const captionText = post.caption ? `\n\n"${post.caption}"` : '';
-      const shareMessage = `Cek postingan dari ${post.userName || 'seseorang'} di aplikasi kita!${captionText}`;
+      const captionText = localPost.caption ? `\n\n"${localPost.caption}"` : '';
+      const shareMessage = `Cek postingan dari ${localPost.userName || 'seseorang'} di aplikasi kita!${captionText}`;
 
       const result = await Share.share({
         message: shareMessage,
@@ -197,15 +226,30 @@ export default function PostDetailScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={[styles.header, { paddingTop: insets.top, height: 56 + insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.card || '#FFFFFF'}
+      />
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            height: 56 + insets.top,
+            backgroundColor: colors.card || '#FFFFFF',
+            borderBottomColor: colors.border || '#E5E7EB',
+          },
+        ]}
+      >
         <TouchableOpacity style={styles.backButton} activeOpacity={0.72} onPress={navigation.goBack}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color={colors.text || '#111827'} />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Post</Text>
-          <Text style={styles.headerSubtitle}>{post.userName || 'User'}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text || '#111827' }]}>Post</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.mutedText || '#6B7280' }]}>
+            {localPost.userName || 'User'}
+          </Text>
         </View>
       </View>
 
@@ -217,25 +261,27 @@ export default function PostDetailScreen({ navigation, route }) {
       >
 
       <PostDetailCard 
-        post={localPost}  
+        post={{ ...localPost, commentsCount }}  
         isLiked={isLiked} 
+        isSaved={isSaved}
         onLikePress={handleLikeToggle} 
         onOpenAuthor={openPublicProfile} 
         onSharePress={handleShare} 
         onCommentPress={handleCommentPress} 
         onSavePress={handleSavePress} 
+        colors={colors}
       />
 
       <View
-        style={styles.commentsSection}
+        style={[styles.commentsSection, { backgroundColor: colors.card || '#FFFFFF' }]}
         onLayout={(event) => {
           commentsTopRef.current = event.nativeEvent.layout.y;
         }}
       >
 
-      <View style={styles.commentsHeader}>
-        <Text style={styles.commentsTitle}>Comments</Text>
-        <Text style={styles.commentsCount}>{commentsCount}</Text>
+      <View style={[styles.commentsHeader, { borderBottomColor: colors.border || '#E5E7EB' }]}>
+        <Text style={[styles.commentsTitle, { color: colors.text || '#111827' }]}>Comments</Text>
+        <Text style={[styles.commentsCount, { color: colors.mutedText || '#6B7280' }]}>{commentsCount}</Text>
       </View>
 
       <CommentComposer
@@ -244,6 +290,7 @@ export default function PostDetailScreen({ navigation, route }) {
         loading={commentSubmitting}
         onChangeText={setCommentText}
         onSubmit={handleAddComment}
+        colors={colors}
       />
 
       {commentsLoading ? (
@@ -251,12 +298,14 @@ export default function PostDetailScreen({ navigation, route }) {
           <ActivityIndicator size="small" color={PURPLE} />
         </View>
       ) : comments.length > 0 ? (
-        comments.map((comment) => <CommentItem key={comment.id} comment={comment} />)
+        comments.map((comment) => <CommentItem key={comment.id} comment={comment} colors={colors} />)
       ) : (
         <View style={styles.emptyComments}>
           <Ionicons name="chatbubble-ellipses-outline" size={30} color={PURPLE} />
-          <Text style={styles.emptyTitle}>Belum ada komentar</Text>
-          <Text style={styles.emptyMessage}>Jadilah yang pertama membalas postingan ini.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text || '#111827' }]}>Belum ada komentar</Text>
+          <Text style={[styles.emptyMessage, { color: colors.mutedText || '#6B7280' }]}>
+            Jadilah yang pertama membalas postingan ini.
+          </Text>
         </View>
     )}
 
@@ -270,11 +319,8 @@ export default function PostDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -289,12 +335,10 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   headerTitle: {
-    color: '#111827',
     fontSize: 17,
     fontWeight: '800',
   },
   headerSubtitle: {
-    color: '#6B7280',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 1,
@@ -306,7 +350,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   commentsSection: {
-    backgroundColor: '#FFFFFF',
   },
   commentsHeader: {
     minHeight: 52,
@@ -314,16 +357,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
   },
   commentsTitle: {
-    color: '#111827',
     fontSize: 16,
     fontWeight: '800',
   },
   commentsCount: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -345,13 +385,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyTitle: {
-    color: '#111827',
     fontSize: 15,
     fontWeight: '800',
     marginTop: 10,
   },
   emptyMessage: {
-    color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,

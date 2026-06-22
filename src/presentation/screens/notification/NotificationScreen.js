@@ -12,26 +12,28 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import UserAvatar from '../../components/common/UserAvatar';
+import { useDependencies } from '../../../app/DependencyProvider';
 import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
+import UserAvatar from '../../components/common/UserAvatar';
+import { normalizeProfileUser } from '../../components/profile/profileFormatters';
 import { appThemes } from '../../theme/theme';
 
 const PURPLE = '#6366F1';
 
-export default function NotificationScreen() {
+export default function NotificationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
+  const { repositories: { postRepository } } = useDependencies();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [openingPostId, setOpeningPostId] = useState(null);
   const [error, setError] = useState(null);
-  const [followBackLoadingIds, setFollowBackLoadingIds] = useState({});
-  const [followedBackIds, setFollowedBackIds] = useState({});
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!user?.id) {
@@ -73,36 +75,57 @@ export default function NotificationScreen() {
     [sections]
   );
 
-  const handleFollowBack = useCallback(async (notification) => {
-    const targetUserId = notification.actor?.id || notification.actorId;
+  const openActorProfile = useCallback((notification) => {
+    const actor = normalizeNotificationActor(notification);
 
-    if (!user?.id || !targetUserId || user.id === targetUserId) return;
+    if (!actor.id) return;
 
-    setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: true }));
-    setError(null);
-
-    try {
-      await socialUsecases.followUser(user.id, targetUserId);
-      setFollowedBackIds((current) => ({ ...current, [notification.id]: true }));
-    } catch (err) {
-      setError(err.message || 'Gagal follow back.');
-      console.log('Gagal follow back:', err?.message || err);
-    } finally {
-      setFollowBackLoadingIds((current) => ({ ...current, [notification.id]: false }));
+    if (actor.id === user?.id) {
+      navigation.navigate('Profile');
+      return;
     }
-  }, [user?.id]);
+
+    const rootNavigation = navigation.getParent?.() || navigation;
+    rootNavigation.navigate('PublicProfile', { user: actor });
+  }, [navigation, user?.id]);
+
+  const openNotificationTarget = useCallback(async (notification) => {
+    if (notification.type === 'FOLLOW') {
+      openActorProfile(notification);
+      return;
+    }
+
+    if (!notification.referenceId) {
+      openActorProfile(notification);
+      return;
+    }
+
+    setOpeningPostId(notification.id);
+    try {
+      const post = await postRepository.getPostById(notification.referenceId);
+      if (post) {
+        const rootNavigation = navigation.getParent?.() || navigation;
+        rootNavigation.navigate('PostDetail', { post });
+      }
+    } catch (err) {
+      setError(err.message || 'Gagal membuka postingan.');
+    } finally {
+      setOpeningPostId(null);
+    }
+  }, [navigation, openActorProfile, postRepository]);
 
   const renderItem = ({ item }) => {
     if (item.type === 'section') {
-      return <Text style={styles.sectionTitle}>{item.title}</Text>;
+      return <Text style={[styles.sectionTitle, { color: colors.text || '#111827' }]}>{item.title}</Text>;
     }
 
     return (
       <NotificationItem
         notification={item}
-        followBackLoading={!!followBackLoadingIds[item.id]}
-        followedBack={!!followedBackIds[item.id]}
-        onFollowBack={handleFollowBack}
+        colors={colors}
+        opening={openingPostId === item.id}
+        onOpenActor={() => openActorProfile(item)}
+        onOpenTarget={() => openNotificationTarget(item)}
       />
     );
   };
@@ -116,14 +139,13 @@ export default function NotificationScreen() {
             height: 56 + insets.top,
             paddingTop: insets.top,
             borderBottomColor: colors.border || '#E5E7EB',
+            backgroundColor: colors.card || '#FFFFFF',
           },
         ]}
       >
         <View style={styles.headerSide} />
-        <Text style={styles.headerTitle}>Activity</Text>
-        <TouchableOpacity style={styles.headerIconButton} activeOpacity={0.72}>
-          <Ionicons name="search-outline" size={22} color={PURPLE} />
-        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.primary || PURPLE }]}>Activity</Text>
+        <View style={styles.headerSide} />
       </View>
 
       <FlatList
@@ -133,6 +155,7 @@ export default function NotificationScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
+          { backgroundColor: colors.background || '#FCF8FF' },
           listData.length === 0 && styles.emptyListContent,
         ]}
         refreshControl={
@@ -144,60 +167,124 @@ export default function NotificationScreen() {
           />
         }
         ListEmptyComponent={
-          <ActivityState loading={loading} error={error} onRetry={() => fetchNotifications()} />
+          <ActivityState loading={loading} error={error} onRetry={() => fetchNotifications()} colors={colors} />
         }
-        ListFooterComponent={listData.length > 0 ? <ActivityFooter /> : null}
+        ListFooterComponent={listData.length > 0 ? <ActivityFooter colors={colors} /> : null}
       />
     </SafeAreaView>
   );
 }
 
-function NotificationItem({ notification, followBackLoading, followedBack, onFollowBack }) {
-  const actorName = notification.actor?.username || notification.actor?.displayName || 'Pengguna';
+function NotificationItem({ notification, colors, opening, onOpenActor, onOpenTarget }) {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const currentUser = useAuthStore((state) => state.user);
+  const actor = normalizeNotificationActor(notification);
+  const actorName = actor.displayName || actor.email || 'Pengguna';
+  const actorPhoto = actor.photoURL;
   const descriptor = getNotificationDescriptor(notification.type);
+  const targetUserId = actor.id || notification.actorId;
+
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (notification.type !== 'FOLLOW') return;
+
+      if (currentUser?.id && targetUserId) {
+        setIsChecking(true);
+        try {
+          const status = await socialUsecases.checkFollowStatus(currentUser.id, targetUserId);
+          setIsFollowing(status);
+        } catch (err) {
+          console.error('Gagal cek status follow:', err);
+        } finally {
+          setIsChecking(false);
+        }
+      }
+    };
+
+    checkFollowStatus();
+  }, [currentUser?.id, notification.type, targetUserId]);
+
+  const handlePressFollow = async () => {
+    if (!currentUser?.id || !targetUserId || currentUser.id === targetUserId || isActionLoading) return;
+
+    const nextIsFollowing = !isFollowing;
+    setIsActionLoading(true);
+    setIsFollowing(nextIsFollowing);
+
+    try {
+      if (nextIsFollowing) {
+        await socialUsecases.followUser(currentUser.id, targetUserId);
+      } else {
+        await socialUsecases.unfollowUser(currentUser.id, targetUserId);
+      }
+    } catch (err) {
+      setIsFollowing(!nextIsFollowing);
+      console.error('Gagal toggle follow dari notifikasi:', err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   return (
-    <View style={styles.notificationItem}>
-      <View style={styles.avatarWrap}>
-        <UserAvatar
-          name={actorName}
-          uri={notification.actor?.profilePic || notification.actor?.photoURL}
-          size={46}
-        />
-        <View style={[styles.typeBadge, { backgroundColor: descriptor.color }]}>
+    <View style={[styles.notificationItem, { backgroundColor: colors.background || '#FCF8FF' }]}>
+      <TouchableOpacity style={styles.avatarWrap} activeOpacity={0.78} onPress={onOpenActor}>
+        <UserAvatar name={actorName} uri={actorPhoto} size={46} />
+        <View
+          style={[
+            styles.typeBadge,
+            {
+              backgroundColor: descriptor.color,
+              borderColor: colors.background || '#FCF8FF',
+            },
+          ]}
+        >
           <Ionicons name={descriptor.badgeIcon} size={11} color="#FFFFFF" />
         </View>
-      </View>
+      </TouchableOpacity>
 
-      <View style={styles.notificationBody}>
-        <Text style={styles.notificationText}>
+      <TouchableOpacity style={styles.notificationBody} activeOpacity={0.78} onPress={onOpenTarget}>
+        <Text style={[styles.notificationText, { color: colors.text || '#1D1B26' }]}>
           <Text style={styles.actorName}>{actorName}</Text>
           {descriptor.message}
         </Text>
-        <Text style={styles.timeText}>{timeAgo(notification.createdAt)}</Text>
-      </View>
+        <Text style={[styles.timeText, { color: colors.mutedText || '#6B7280' }]}>
+          {timeAgo(notification.createdAt)}
+        </Text>
+      </TouchableOpacity>
 
-      {notification.type === 'FOLLOW' ? (
+      {opening ? (
+        <ActivityIndicator size="small" color={PURPLE} />
+      ) : notification.type === 'FOLLOW' ? (
         <TouchableOpacity
-          style={[styles.followBackButton, followedBack && styles.followingButton]}
+          style={[
+            styles.followBackButton,
+            isFollowing && styles.followingButton,
+            isFollowing && { backgroundColor: colors.card || '#FFFFFF' },
+          ]}
           activeOpacity={0.78}
-          disabled={followBackLoading || followedBack}
-          onPress={() => onFollowBack(notification)}
+          disabled={isActionLoading || isChecking}
+          onPress={handlePressFollow}
         >
-          {followBackLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+          {isActionLoading || isChecking ? (
+            <ActivityIndicator size="small" color={isFollowing ? PURPLE : '#FFFFFF'} />
           ) : (
-            <Text style={[styles.followBackText, followedBack && styles.followingText]}>
-              {followedBack ? 'Following' : 'Follow back'}
+            <Text style={[styles.followBackText, isFollowing && styles.followingText]}>
+              {isFollowing ? 'Following' : 'Follow back'}
             </Text>
           )}
         </TouchableOpacity>
-      ) : null}
+      ) : (
+        <TouchableOpacity style={styles.openButton} activeOpacity={0.72} onPress={onOpenTarget}>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedText || '#9CA3AF'} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-function ActivityState({ loading, error, onRetry }) {
+function ActivityState({ loading, error, onRetry, colors }) {
   if (loading) {
     return (
       <View style={styles.stateContainer}>
@@ -209,8 +296,10 @@ function ActivityState({ loading, error, onRetry }) {
   return (
     <View style={styles.stateContainer}>
       <Ionicons name={error ? 'alert-circle-outline' : 'notifications-outline'} size={36} color={PURPLE} />
-      <Text style={styles.stateTitle}>{error ? 'Gagal memuat aktivitas' : 'Belum ada aktivitas'}</Text>
-      <Text style={styles.stateMessage}>
+      <Text style={[styles.stateTitle, { color: colors.text || '#111827' }]}>
+        {error ? 'Gagal memuat aktivitas' : 'Belum ada aktivitas'}
+      </Text>
+      <Text style={[styles.stateMessage, { color: colors.mutedText || '#6B7280' }]}>
         {error || 'Notifikasi dari follow, like, dan komentar akan muncul di sini.'}
       </Text>
       {error ? (
@@ -222,13 +311,27 @@ function ActivityState({ loading, error, onRetry }) {
   );
 }
 
-function ActivityFooter() {
+function ActivityFooter({ colors }) {
   return (
     <View style={styles.footer}>
-      <Ionicons name="refresh-circle-outline" size={34} color="#B7B1C9" />
-      <Text style={styles.footerText}>that&apos;s all your activity for the week.</Text>
+      <Ionicons name="refresh-circle-outline" size={34} color={colors.mutedText || '#B7B1C9'} />
+      <Text style={[styles.footerText, { color: colors.mutedText || '#A8A2B8' }]}>
+        That's all your activity for the week.
+      </Text>
     </View>
   );
+}
+
+function normalizeNotificationActor(notification = {}) {
+  const actor = notification.actor || {};
+
+  return normalizeProfileUser({
+    id: actor.id || notification.actorId,
+    displayName: actor.displayName || actor.username || actor.email,
+    photoURL: actor.photoURL || actor.photoUrl || actor.profilePic,
+    email: actor.email,
+    bio: actor.bio,
+  });
 }
 
 function groupNotifications(notifications) {
@@ -311,17 +414,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-  },
-  headerIconButton: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerSide: {
     width: 42,
@@ -336,13 +432,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 104,
-    backgroundColor: '#FCF8FF',
   },
   emptyListContent: {
     flexGrow: 1,
   },
   sectionTitle: {
-    color: '#1D1B26',
     fontSize: 18,
     fontWeight: '800',
     paddingHorizontal: 20,
@@ -355,7 +449,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#FCF8FF',
   },
   avatarWrap: {
     width: 52,
@@ -370,7 +463,6 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#FCF8FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -379,7 +471,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   notificationText: {
-    color: '#1D1B26',
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
@@ -388,7 +479,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   timeText: {
-    color: '#6B7280',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 3,
@@ -416,6 +506,13 @@ const styles = StyleSheet.create({
   followingText: {
     color: PURPLE,
   },
+  openButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   stateContainer: {
     flex: 1,
     alignItems: 'center',
@@ -423,13 +520,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   stateTitle: {
-    color: '#111827',
     fontSize: 16,
     fontWeight: '800',
     marginTop: 12,
   },
   stateMessage: {
-    color: '#6B7280',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 6,
@@ -453,7 +548,6 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   footerText: {
-    color: '#A8A2B8',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,

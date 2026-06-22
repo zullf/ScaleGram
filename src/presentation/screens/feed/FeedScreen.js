@@ -5,9 +5,12 @@ import { useDependencies } from '../../../app/DependencyProvider';
 import ScreenHeader from '../../components/common/ScreenHeader';
 import ScreenState from '../../components/common/ScreenState';
 import PostCard from '../../components/feed/PostCard';
+import { useDrawerController } from '../../navigation/DrawerController';
 import { useAuthStore } from '../../../store/authStore';
 import { useFeed } from '../../hooks/useFeed';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
+import { appThemes } from '../../theme/theme';
+import { useThemeStore } from '../../../store/themeStore';
 
 const PURPLE = '#6366F1';
 
@@ -17,6 +20,9 @@ export default function FeedScreen({ navigation }) {
     repositories: { postRepository },
   } = useDependencies();
   const user = useAuthStore((state) => state.user);
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
+  const { openDrawer } = useDrawerController();
 
   const handleLike = async (post) => {
     if (!user?.id || !post?.id) return;
@@ -38,7 +44,7 @@ export default function FeedScreen({ navigation }) {
 
     try {
       if (alreadyLiked) {
-        await socialUsecases.unlikePost(user.id, post.id); 
+        await socialUsecases.unlikePost(user.id, post.id);
       } else {
         await socialUsecases.likePost(user.id, post.id);
       }
@@ -105,7 +111,7 @@ export default function FeedScreen({ navigation }) {
     }
   };
 
-  const renderPost = ({ item }) => {
+  const renderPost = ({ item, index }) => {
     const likedBy = Array.isArray(item.likedBy) ? item.likedBy : [];
     const isLiked = Boolean(user?.id && likedBy.includes(user.id));
 
@@ -113,8 +119,8 @@ export default function FeedScreen({ navigation }) {
     const isSaved = Boolean(user?.id && savedBy.includes(user.id));
 
     const openPostDetail = (params = {}) => {
-      navigation.getParent()?.navigate('PostDetail', { 
-        post: item, 
+      navigation.getParent()?.navigate('PostDetail', {
+        post: item,
         ...params,
         onPostUpdate: (updatedPost) => {
           setPosts((currentPosts) =>
@@ -143,21 +149,23 @@ export default function FeedScreen({ navigation }) {
     return (
       <PostCard
         post={item}
+        index={index}
         isLiked={isLiked}
-        isSaved={isSaved} 
+        isSaved={isSaved}
         onLikePress={() => handleLike(item)}
-        onSavePress={() => handleSave(item)} 
+        onSavePress={() => handleSave(item)}
         onOpenPost={() => openPostDetail()}
         onCommentPress={() => openPostDetail({ focusComments: true })}
         onOpenAuthor={openPublicProfile}
         onSharePress={() => handleShare(item)}
+        colors={colors}
       />
     );
   };
 
   const renderEmpty = () => {
     if (loading) {
-      return <ScreenState loading />;
+      return <ScreenState loading colors={colors} />;
     }
 
     if (error) {
@@ -168,6 +176,7 @@ export default function FeedScreen({ navigation }) {
           message={error}
           actionLabel="Coba lagi"
           onAction={refetch}
+          colors={colors}
         />
       );
     }
@@ -177,14 +186,18 @@ export default function FeedScreen({ navigation }) {
         icon="images-outline"
         title="Belum ada postingan"
         message="Postingan dari backend akan muncul di sini setelah berhasil dibuat."
+        colors={colors}
       />
     );
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScreenHeader showMenu showLogo />
+    <View style={[styles.container, { backgroundColor: colors.background || '#FFFFFF' }]}>
+      <StatusBar
+        barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.card || '#FFFFFF'}
+      />
+      <ScreenHeader showMenu showLogo onMenuPress={openDrawer} colors={colors} />
 
       <FlatList
         data={posts}
@@ -213,7 +226,6 @@ export default function FeedScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   feedContent: {
     paddingBottom: 104,

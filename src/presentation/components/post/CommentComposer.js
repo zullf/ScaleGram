@@ -5,17 +5,25 @@ import UserAvatar from '../common/UserAvatar';
 
 const PURPLE = '#6366F1';
 
-export default function CommentComposer({ user, value, loading, onChangeText, onSubmit }) {
+export default function CommentComposer({ user, value, loading, onChangeText, onSubmit, colors = {} }) {
   const disabled = loading || !value.trim();
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.card || '#FFFFFF',
+          borderBottomColor: colors.border || '#E5E7EB',
+        },
+      ]}
+    >
       <UserAvatar name={user?.displayName || user?.email} uri={user?.photoURL} size={38} />
       <View style={styles.inputWrap}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.text || '#111827' }]}
           placeholder="Write your reply"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.mutedText || '#9CA3AF'}
           value={value}
           onChangeText={onChangeText}
           multiline
@@ -43,9 +51,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomColor: '#E5E7EB',
     borderBottomWidth: 1,
-    backgroundColor: '#FFFFFF',
   },
   inputWrap: {
     flex: 1,
@@ -53,7 +59,6 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 42,
-    color: '#111827',
     fontSize: 15,
     lineHeight: 21,
     paddingTop: 7,

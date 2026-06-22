@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { appThemes } from '../theme/theme';
+import { useThemeStore } from '../../store/themeStore';
 import FeedScreen from '../screens/feed/FeedScreen';
 import CreatePostScreen from '../screens/post/CreatePostScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
@@ -36,6 +38,8 @@ const tabIcons = {
 
 export default function MainTabs() {
   const insets = useSafeAreaInsets();
+  const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
   const bottomPadding = Math.max(insets.bottom, 8);
   const bottomOffset = Platform.OS === 'android' ? 0 : 0;
 
@@ -43,17 +47,17 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: colors.primary || '#6366F1',
+        tabBarInactiveTintColor: colors.mutedText || '#9CA3AF',
         tabBarStyle: {
           height: 54 + insets.bottom,
           paddingBottom: bottomPadding,
           paddingTop: 8,
           bottom: bottomOffset,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.card || '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          shadowColor: '#111827',
+          borderTopColor: colors.border || '#E5E7EB',
+          shadowColor: colors.shadow || '#111827',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
           shadowRadius: 12,

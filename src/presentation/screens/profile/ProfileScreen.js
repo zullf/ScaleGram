@@ -5,7 +5,6 @@ import { useCallback, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -13,8 +12,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
+import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
+import FollowListModal from '../../components/profile/FollowListModal';
 import UserAvatar from '../../components/common/UserAvatar';
+import { normalizeProfileUser } from '../../components/profile/profileFormatters';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -22,6 +25,7 @@ import { useFeed } from '../../hooks/useFeed';
 import { appThemes } from '../../theme/theme';
 
 import { createPostRepository } from '../../../data/repositories/postRepositoryImpl';
+import { userRepository } from '../../../data/repositories/userRepositoryImpl';
 import { db } from '../../../config/firebase';
 
 const postRepository = createPostRepository({ db });
@@ -34,28 +38,54 @@ const profileTabs = [
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
+  const updateUser = useAuthStore((state) => state.updateUser);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const { posts, loading, error, refetch, loadMore } = useFeed(30);
-  
+
   const [activeTab, setActiveTab] = useState('posts');
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
+  const [profileUser, setProfileUser] = useState(user);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [followListType, setFollowListType] = useState(null);
 
   const [savedPosts, setSavedPosts] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
 
-  const displayName = user?.displayName || 'ScaleGram User';
-  const email = user?.email || 'Belum ada user aktif';
+  const currentProfile = profileUser || user;
+  const displayName = currentProfile?.displayName || 'ScaleGram User';
+  const email = currentProfile?.email || 'Belum ada user aktif';
   const userPosts = posts.filter((post) => post.userId === user?.id);
+  const followersCount = followers.length;
+  const followingCount = following.length;
 
   const gridData = activeTab === 'posts' ? userPosts : savedPosts;
   const currentLoading = activeTab === 'posts' ? loading : loadingSaved;
 
+  const loadProfile = useCallback(async () => {
+    if (!user?.id) {
+      setProfileUser(null);
+      return;
+    }
+
+    try {
+      const latestProfile = await userRepository.getProfile(user.id);
+      if (latestProfile) {
+        setProfileUser(latestProfile);
+        updateUser(latestProfile);
+      } else {
+        setProfileUser(user);
+      }
+    } catch (err) {
+      console.log('Gagal memuat profil terbaru:', err?.message || err);
+      setProfileUser(user);
+    }
+  }, [updateUser, user?.id]);
+
   const loadSocialStats = useCallback(async () => {
     if (!user?.id) {
-      setFollowersCount(0);
-      setFollowingCount(0);
+      setFollowers([]);
+      setFollowing([]);
       return;
     }
 
@@ -65,8 +95,8 @@ export default function ProfileScreen({ navigation }) {
         socialUsecases.getFollowing(user.id),
       ]);
 
-      setFollowersCount(followers.length);
-      setFollowingCount(following.length);
+      setFollowers(followers);
+      setFollowing(following);
     } catch (err) {
       console.log('Gagal memuat statistik profile:', err?.message || err);
     }
@@ -74,7 +104,7 @@ export default function ProfileScreen({ navigation }) {
 
   const loadSavedPosts = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setLoadingSaved(true);
     try {
       const fetchedSavedPosts = await postRepository.getSavedPosts(user.id);
@@ -92,13 +122,37 @@ export default function ProfileScreen({ navigation }) {
     }
   }, [activeTab, loadSavedPosts]);
 
+  const handleProfileSwipe = useCallback((event) => {
+    const { state, translationX } = event.nativeEvent;
+
+    if (state !== State.END) return;
+
+    if (translationX < -45) {
+      setActiveTab('saved');
+    }
+
+    if (translationX > 45) {
+      setActiveTab('posts');
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       refetch();
+      loadProfile();
       loadSocialStats();
       if (activeTab === 'saved') loadSavedPosts();
-    }, [loadSocialStats, refetch, activeTab, loadSavedPosts])
+    }, [loadProfile, loadSocialStats, refetch, activeTab, loadSavedPosts])
   );
+
+  const handleSelectFollowUser = (selectedUser) => {
+    const normalizedUser = normalizeProfileUser(selectedUser);
+    setFollowListType(null);
+
+    if (!normalizedUser.id || normalizedUser.id === user?.id) return;
+
+    navigation.getParent()?.navigate('PublicProfile', { user: normalizedUser });
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -109,27 +163,35 @@ export default function ProfileScreen({ navigation }) {
             height: 56 + insets.top,
             paddingTop: insets.top,
             borderBottomColor: colors.border || '#E5E7EB',
+            backgroundColor: colors.card || '#FFFFFF',
           },
         ]}
       >
         <Text style={[styles.headerTitle, { color: colors.text || '#111827' }]} numberOfLines={1}>
           {displayName}
         </Text>
-        <TouchableOpacity style={styles.settingsButton} activeOpacity={0.72}>
-          <Ionicons name="settings-outline" size={24} color={colors.text || '#111827'} />
-        </TouchableOpacity>
       </View>
 
-      <View style={styles.profileSection}>
+        <View style={[styles.profileSection, { backgroundColor: colors.card || '#FFFFFF' }]}>
         <View style={styles.profileTopRow}>
-          <View style={styles.avatarRing}>
-            <UserAvatar name={displayName} uri={user?.photoURL} size={86} />
+          <View style={[styles.avatarRing, { backgroundColor: colors.card || '#FFFFFF' }]}>
+            <UserAvatar name={displayName} uri={currentProfile?.photoURL || currentProfile?.photoUrl} size={86} />
           </View>
 
           <View style={styles.statsRow}>
             <ProfileStat value={String(userPosts.length)} label="Posts" colors={colors} />
-            <ProfileStat value={String(followersCount)} label="Followers" colors={colors} />
-            <ProfileStat value={String(followingCount)} label="Following" colors={colors} />
+            <ProfileStat
+              value={String(followersCount)}
+              label="Followers"
+              colors={colors}
+              onPress={() => setFollowListType('followers')}
+            />
+            <ProfileStat
+              value={String(followingCount)}
+              label="Following"
+              colors={colors}
+              onPress={() => setFollowListType('following')}
+            />
           </View>
         </View>
 
@@ -141,13 +203,14 @@ export default function ProfileScreen({ navigation }) {
             {email}
           </Text>
           <Text style={[styles.bioText, { color: colors.text || '#111827' }]}>
-            Share moments, save inspiration, and keep your creative feed tidy.
+            {currentProfile?.bio || 'Share moments, save inspiration, and keep your creative feed tidy.'}
           </Text>
         </View>
 
         <TouchableOpacity
           style={[styles.editButton, { borderColor: colors.border || '#D1D5DB' }]}
           activeOpacity={0.76}
+          onPress={() => navigation.navigate('EditProfileScreen', { currentUser: currentProfile })}
         >
           <Text style={[styles.editButtonText, { color: colors.text || '#111827' }]}>
             Edit Profile
@@ -155,60 +218,56 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.tabsRow, { borderTopColor: colors.border || '#E5E7EB', borderBottomColor: colors.border || '#E5E7EB' }]}>
-        {profileTabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-
-          return (
-            <Pressable
-              key={tab.key}
-              style={[styles.tabButton, isActive && styles.activeTabButton]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={20}
-                color={isActive ? PURPLE : colors.mutedText || '#6B7280'}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: isActive ? PURPLE : colors.mutedText || '#6B7280' },
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <FlatList
-        data={gridData}
-        key={activeTab} 
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.gridContent,
-          gridData.length === 0 && styles.emptyGridContent,
-        ]}
-        renderItem={({ item }) => (
-          <PostThumbnail
-            post={item}
-            onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
-          />
-        )}
-        ListEmptyComponent={
-          <ProfileGridEmpty
+      <PanGestureHandler
+        activeOffsetX={[-20, 20]}
+        failOffsetY={[-18, 18]}
+        onHandlerStateChange={handleProfileSwipe}
+      >
+        <View style={styles.contentArea}>
+          <AnimatedProfileTabs
+            tabs={profileTabs}
             activeTab={activeTab}
-            loading={currentLoading}
-            error={error}
             colors={colors}
+            onChange={setActiveTab}
           />
-        }
-        onEndReached={activeTab === 'posts' ? loadMore : undefined}
-        onEndReachedThreshold={0.5}
+
+          <FlatList
+            data={gridData}
+            key={activeTab}
+            keyExtractor={(item) => item.id}
+            numColumns={3}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.gridContent,
+              gridData.length === 0 && styles.emptyGridContent,
+            ]}
+            renderItem={({ item }) => (
+              <PostThumbnail
+                post={item}
+                onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
+              />
+            )}
+            ListEmptyComponent={
+              <ProfileGridEmpty
+                activeTab={activeTab}
+                loading={currentLoading}
+                error={error}
+                colors={colors}
+              />
+            }
+            onEndReached={activeTab === 'posts' ? loadMore : undefined}
+            onEndReachedThreshold={0.5}
+          />
+        </View>
+      </PanGestureHandler>
+
+      <FollowListModal
+        visible={!!followListType}
+        title={followListType === 'following' ? 'Following' : 'Followers'}
+        users={followListType === 'following' ? following : followers}
+        colors={colors}
+        onClose={() => setFollowListType(null)}
+        onSelectUser={handleSelectFollowUser}
       />
     </SafeAreaView>
   );
@@ -258,12 +317,14 @@ function ProfileGridEmpty({ activeTab, loading, error, colors }) {
   );
 }
 
-function ProfileStat({ value, label, colors }) {
+function ProfileStat({ value, label, colors, onPress }) {
+  const Container = onPress ? TouchableOpacity : View;
+
   return (
-    <View style={styles.statItem}>
+    <Container style={styles.statItem} activeOpacity={0.72} onPress={onPress}>
       <Text style={[styles.statValue, { color: colors.text || '#111827' }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: colors.mutedText || '#6B7280' }]}>{label}</Text>
-    </View>
+    </Container>
   );
 }
 
@@ -283,18 +344,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  settingsButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
-  },
   profileSection: {
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
+  },
+  contentArea: {
+    flex: 1,
   },
   profileTopRow: {
     flexDirection: 'row',
@@ -308,7 +364,6 @@ const styles = StyleSheet.create({
     borderColor: PURPLE,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
   statsRow: {
     flex: 1,
@@ -355,28 +410,6 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     fontSize: 13,
-    fontWeight: '800',
-  },
-  tabsRow: {
-    height: 50,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTabButton: {
-    borderBottomColor: PURPLE,
-  },
-  tabText: {
-    fontSize: 12,
     fontWeight: '800',
   },
   gridContent: {
