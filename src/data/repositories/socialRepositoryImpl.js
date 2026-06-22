@@ -1,4 +1,4 @@
-import { doc, writeBatch, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, writeBatch, getDoc, collection, getDocs, increment } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { notificationRepositoryImpl } from './notificationRepositoryImpl';
 
@@ -8,28 +8,32 @@ export const socialRepositoryImpl = {
       const batch = writeBatch(db);
 
       const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
-      
       const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-
       batch.set(followingRef, { followedAt: new Date() });
       batch.set(followerRef, { followedAt: new Date() });
+
+      const currentUserDoc = doc(db, 'users', currentUserId);
+      const targetUserDoc = doc(db, 'users', targetUserId);
+
+      batch.set(currentUserDoc, { followingCount: increment(1) }, { merge: true });
+      batch.set(targetUserDoc, { followersCount: increment(1) }, { merge: true });
 
       await batch.commit();
       console.log(`[Social] ${currentUserId} berhasil follow ${targetUserId}`);
 
       try {
         await notificationRepositoryImpl.createNotification(
-          currentUserId,  
-          targetUserId, 
-          'FOLLOW'
+          currentUserId, 
+          targetUserId,  
+          'FOLLOW'       
         );
-        console.log(`[Notification] Log follow berhasil dibuat di Firestore`);
-      } catch (notifError) {
-        console.log(`[Notification] Gagal membuat log notifikasi, tapi follow tetap berhasil. Detail eror:`, notifError);
+        console.log('Notifikasi follow berhasil dikirim!');
+      } catch (notifErr) {
+        console.error('Ops, gagal ngirim notif:', notifErr);
       }
 
     } catch (error) {
-      console.error("Error saat follow user:", error);
+      console.error('Gagal update follow:', error.message);
       throw error;
     }
   },
@@ -40,14 +44,19 @@ export const socialRepositoryImpl = {
 
       const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
       const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-
       batch.delete(followingRef);
       batch.delete(followerRef);
+
+      const currentUserDoc = doc(db, 'users', currentUserId);
+      const targetUserDoc = doc(db, 'users', targetUserId);
+
+      batch.set(currentUserDoc, { followingCount: increment(-1) }, { merge: true });
+      batch.set(targetUserDoc, { followersCount: increment(-1) }, { merge: true });
 
       await batch.commit();
       console.log(`[Social] ${currentUserId} berhasil unfollow ${targetUserId}`);
     } catch (error) {
-      console.error("Error saat unfollow user:", error);
+      console.error('Gagal update unfollow:', error.message);
       throw error;
     }
   },

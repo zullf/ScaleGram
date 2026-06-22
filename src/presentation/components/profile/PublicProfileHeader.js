@@ -17,6 +17,8 @@ export default function PublicProfileHeader({
   isFollowing,
   followLoading,
   onToggleFollow,
+  onFollowersPress,
+  onFollowingPress,
 }) {
   return (
     <View>
@@ -28,8 +30,18 @@ export default function PublicProfileHeader({
 
           <View style={styles.statsRow}>
             <ProfileStat value={String(postsCount)} label="Posts" colors={colors} />
-            <ProfileStat value={String(followersCount)} label="Followers" colors={colors} />
-            <ProfileStat value={String(followingCount)} label="Following" colors={colors} />
+            <ProfileStat
+              value={String(followersCount)}
+              label="Followers"
+              colors={colors}
+              onPress={onFollowersPress}
+            />
+            <ProfileStat
+              value={String(followingCount)}
+              label="Following"
+              colors={colors}
+              onPress={onFollowingPress}
+            />
           </View>
         </View>
 

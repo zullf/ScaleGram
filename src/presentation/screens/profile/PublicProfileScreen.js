@@ -3,11 +3,13 @@ import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
+import FollowListModal from '../../components/profile/FollowListModal';
 import ProfileGridEmpty from '../../components/profile/ProfileGridEmpty';
 import ProfileHeaderBar from '../../components/profile/ProfileHeaderBar';
 import ProfilePostGridItem from '../../components/profile/ProfilePostGridItem';
 import PublicProfileHeader from '../../components/profile/PublicProfileHeader';
 import { normalizeProfileUser } from '../../components/profile/profileFormatters';
+import { userRepository } from '../../../data/repositories/userRepositoryImpl';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useFeed } from '../../hooks/useFeed';
@@ -27,19 +29,44 @@ export default function PublicProfileScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [followListType, setFollowListType] = useState(null);
 
-  const profileUser = useMemo(() => normalizeProfileUser(route.params?.user), [route.params?.user]);
+  const routeProfileUser = useMemo(() => normalizeProfileUser(route.params?.user), [route.params?.user]);
+  const [profileUser, setProfileUser] = useState(routeProfileUser);
   const isOwnProfile = currentUser?.id === profileUser.id;
   const userPosts = posts.filter((post) => post.userId === profileUser.id);
   const gridData = activeTab === 'posts' ? userPosts : [];
+  const followersCount = followers.length;
+  const followingCount = following.length;
+
+  useEffect(() => {
+    setProfileUser(routeProfileUser);
+  }, [routeProfileUser]);
 
   useEffect(() => {
     if (isOwnProfile) {
       navigation.replace('MainTabs', { screen: 'Profile' });
     }
   }, [isOwnProfile, navigation]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!routeProfileUser.id) return;
+
+      try {
+        const latestProfile = await userRepository.getProfile(routeProfileUser.id);
+        if (latestProfile) {
+          setProfileUser(normalizeProfileUser(latestProfile));
+        }
+      } catch (err) {
+        console.log('Gagal memuat profile user:', err?.message || err);
+      }
+    };
+
+    loadProfile();
+  }, [routeProfileUser.id]);
 
   const loadSocialState = useCallback(async () => {
     if (!profileUser.id) return;
@@ -53,8 +80,8 @@ export default function PublicProfileScreen({ navigation, route }) {
           : Promise.resolve(false),
       ]);
 
-      setFollowersCount(Math.max(followers.length, followStatus ? 1 : 0));
-      setFollowingCount(following.length);
+      setFollowers(followers);
+      setFollowing(following);
       setIsFollowing(followStatus);
     } catch (err) {
       console.log('Gagal memuat status follow:', err?.message || err);
@@ -70,7 +97,16 @@ export default function PublicProfileScreen({ navigation, route }) {
 
     const nextFollowing = !isFollowing;
     setIsFollowing(nextFollowing);
-    setFollowersCount((count) => Math.max(count + (nextFollowing ? 1 : -1), 0));
+    setFollowers((currentFollowers) => {
+      if (nextFollowing) {
+        const currentProfileUser = normalizeProfileUser(currentUser);
+        return currentFollowers.some((item) => item.id === currentProfileUser.id)
+          ? currentFollowers
+          : [currentProfileUser, ...currentFollowers];
+      }
+
+      return currentFollowers.filter((item) => item.id !== currentUser.id);
+    });
     setFollowLoading(true);
 
     try {
@@ -81,7 +117,7 @@ export default function PublicProfileScreen({ navigation, route }) {
       }
     } catch (err) {
       setIsFollowing(!nextFollowing);
-      setFollowersCount((count) => Math.max(count + (nextFollowing ? -1 : 1), 0));
+      loadSocialState();
       console.log('Gagal update follow:', err?.message || err);
     } finally {
       setFollowLoading(false);
@@ -101,6 +137,20 @@ export default function PublicProfileScreen({ navigation, route }) {
       setActiveTab('posts');
     }
   }, []);
+
+  const handleSelectFollowUser = (selectedUser) => {
+    const normalizedUser = normalizeProfileUser(selectedUser);
+    setFollowListType(null);
+
+    if (!normalizedUser.id) return;
+
+    if (normalizedUser.id === currentUser?.id) {
+      navigation.replace('MainTabs', { screen: 'Profile' });
+      return;
+    }
+
+    navigation.push('PublicProfile', { user: normalizedUser });
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -134,6 +184,8 @@ export default function PublicProfileScreen({ navigation, route }) {
                   isFollowing={isFollowing}
                   followLoading={followLoading}
                   onToggleFollow={handleToggleFollow}
+                  onFollowersPress={() => setFollowListType('followers')}
+                  onFollowingPress={() => setFollowListType('following')}
                 />
                 <AnimatedProfileTabs
                   tabs={profileTabs}
@@ -171,6 +223,15 @@ export default function PublicProfileScreen({ navigation, route }) {
           />
         </View>
       </PanGestureHandler>
+
+      <FollowListModal
+        visible={!!followListType}
+        title={followListType === 'following' ? 'Following' : 'Followers'}
+        users={followListType === 'following' ? following : followers}
+        colors={colors}
+        onClose={() => setFollowListType(null)}
+        onSelectUser={handleSelectFollowUser}
+      />
     </SafeAreaView>
   );
 }

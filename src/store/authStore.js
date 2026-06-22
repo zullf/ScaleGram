@@ -78,6 +78,16 @@ export const useAuthStore = create(
         }
       },
 
+      updateUser: (updatedUser = {}) => {
+        set((state) => ({
+          user: {
+            ...state.user,
+            ...updatedUser,
+            photoURL: updatedUser.photoURL ?? updatedUser.photoUrl ?? state.user?.photoURL ?? null,
+          },
+        }));
+      },
+
       deleteAccount: async () => {
         set({ isLoading: true, error: null });
         try {

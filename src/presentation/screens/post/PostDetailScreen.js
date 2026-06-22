@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Share} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View, Share} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,7 +7,6 @@ import CommentComposer from '../../components/post/CommentComposer';
 import CommentItem from '../../components/post/CommentItem';
 import PostDetailCard from '../../components/post/PostDetailCard';
 import { useDependencies } from '../../../app/DependencyProvider';
-import { notificationUsecases } from '../../../domain/usecases/notificationUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { appThemes } from '../../theme/theme';
 import { useThemeStore } from '../../../store/themeStore';
@@ -30,12 +29,16 @@ export default function PostDetailScreen({ navigation, route }) {
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [saveSubmitting, setSaveSubmitting] = useState(false);
   const [commentsError, setCommentsError] = useState(null);
   const commentsCount = comments.length;
-  const displayPost = { ...post, commentsCount };
-
-  const [localPost, setLocalPost] = useState(displayPost);
+  const [localPost, setLocalPost] = useState(post);
   const isLiked = Array.isArray(localPost.likedBy) && localPost.likedBy.includes(user?.id);
+  const isSaved = Array.isArray(localPost.savedBy) && localPost.savedBy.includes(user?.id);
+
+  useEffect(() => {
+    setLocalPost(post);
+  }, [post]);
 
   const handleLikeToggle = async () => {
     if (!user?.id || !localPost.id) return;
@@ -76,12 +79,42 @@ export default function PostDetailScreen({ navigation, route }) {
     scrollRef.current?.scrollTo({ y: commentsTopRef.current, animated: true });
   };
 
-  const handleSavePress = () => {
-    alert("Fitur Save/Bookmark akan segera hadir!"); 
+  const handleSavePress = async () => {
+    if (!user?.id || !localPost.id || saveSubmitting) return;
+
+    const savedBy = Array.isArray(localPost.savedBy) ? localPost.savedBy : [];
+    const alreadySaved = savedBy.includes(user.id);
+    const nextSavedBy = alreadySaved
+      ? savedBy.filter((savedUserId) => savedUserId !== user.id)
+      : [...savedBy, user.id];
+    const updatedPost = { ...localPost, savedBy: nextSavedBy };
+
+    setSaveSubmitting(true);
+    setLocalPost(updatedPost);
+
+    if (route.params?.onPostUpdate) {
+      route.params.onPostUpdate(updatedPost);
+    }
+
+    try {
+      if (alreadySaved) {
+        await postRepository.unsavePost(localPost.id, user.id);
+      } else {
+        await postRepository.savePost(localPost.id, user.id);
+      }
+    } catch (err) {
+      setLocalPost((prev) => ({ ...prev, savedBy }));
+      if (route.params?.onPostUpdate) {
+        route.params.onPostUpdate(localPost);
+      }
+      Alert.alert('Gagal', err.message || 'Gagal memperbarui saved post.');
+    } finally {
+      setSaveSubmitting(false);
+    }
   };
 
   const loadComments = useCallback(async () => {
-    if (!post.id) {
+    if (!localPost.id) {
       setComments([]);
       setCommentsLoading(false);
       return;
@@ -91,7 +124,7 @@ export default function PostDetailScreen({ navigation, route }) {
     setCommentsError(null);
 
     try {
-      const result = await postRepository.getComments(post.id);
+      const result = await postRepository.getComments(localPost.id);
       setComments(result);
     } catch (err) {
       setCommentsError(err.message || 'Gagal memuat komentar.');
@@ -99,7 +132,7 @@ export default function PostDetailScreen({ navigation, route }) {
     } finally {
       setCommentsLoading(false);
     }
-  }, [post.id, postRepository]);
+  }, [localPost.id, postRepository]);
 
   useEffect(() => {
     loadComments();
@@ -117,7 +150,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
   const handleAddComment = async () => {
     const text = commentText.trim();
-    if (!text || !post.id || commentSubmitting) return;
+    if (!text || !localPost.id || commentSubmitting) return;
 
     const localComment = {
       id: `local-${Date.now()}`,
@@ -134,7 +167,7 @@ export default function PostDetailScreen({ navigation, route }) {
     setCommentText('');
 
     try {
-      const commentId = await socialUsecases.addComment(post.id, {
+      const commentId = await socialUsecases.addComment(localPost.id, {
         text,
         userId: user?.id || null,
         userName: user?.displayName || user?.email || 'User',
@@ -146,14 +179,6 @@ export default function PostDetailScreen({ navigation, route }) {
           comment.id === localComment.id ? { ...localComment, id: commentId } : comment
         )
       );
-
-      if (user?.id && post.userId && user.id !== post.userId) {
-        try {
-          await notificationUsecases.createNotification(user.id, post.userId, 'COMMENT', post.id);
-        } catch (notifErr) {
-          console.log('Gagal trigger real-time notification (mungkin offline):', notifErr);
-        }
-      }
     } catch (err) {
       setComments((currentComments) =>
         currentComments.filter((comment) => comment.id !== localComment.id)
@@ -167,24 +192,24 @@ export default function PostDetailScreen({ navigation, route }) {
   };
 
   const openPublicProfile = () => {
-    if (post.userId === user?.id) {
+    if (localPost.userId === user?.id) {
       navigation.navigate('MainTabs', { screen: 'Profile' });
       return;
     }
 
     navigation.navigate('PublicProfile', {
       user: {
-        id: post.userId,
-        displayName: post.userName,
-        photoURL: post.userAvatar,
+        id: localPost.userId,
+        displayName: localPost.userName,
+        photoURL: localPost.userAvatar,
       },
     });
   };
 
   const handleShare = async () => {
     try {
-      const captionText = post.caption ? `\n\n"${post.caption}"` : '';
-      const shareMessage = `Cek postingan dari ${post.userName || 'seseorang'} di aplikasi kita!${captionText}`;
+      const captionText = localPost.caption ? `\n\n"${localPost.caption}"` : '';
+      const shareMessage = `Cek postingan dari ${localPost.userName || 'seseorang'} di aplikasi kita!${captionText}`;
 
       const result = await Share.share({
         message: shareMessage,
@@ -223,7 +248,7 @@ export default function PostDetailScreen({ navigation, route }) {
         <View>
           <Text style={[styles.headerTitle, { color: colors.text || '#111827' }]}>Post</Text>
           <Text style={[styles.headerSubtitle, { color: colors.mutedText || '#6B7280' }]}>
-            {post.userName || 'User'}
+            {localPost.userName || 'User'}
           </Text>
         </View>
       </View>
@@ -236,8 +261,9 @@ export default function PostDetailScreen({ navigation, route }) {
       >
 
       <PostDetailCard 
-        post={localPost}  
+        post={{ ...localPost, commentsCount }}  
         isLiked={isLiked} 
+        isSaved={isSaved}
         onLikePress={handleLikeToggle} 
         onOpenAuthor={openPublicProfile} 
         onSharePress={handleShare} 

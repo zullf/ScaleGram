@@ -2,7 +2,7 @@ export function normalizeProfileUser(user = {}) {
   return {
     id: user.id || user.userId,
     displayName: user.displayName || user.userName || 'ScaleGram User',
-    photoURL: user.photoURL || user.userAvatar || null,
+    photoURL: user.photoURL || user.photoUrl || user.profilePic || user.userAvatar || null,
     email: user.email || null,
     bio: user.bio || null,
   };

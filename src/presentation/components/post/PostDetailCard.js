@@ -11,6 +11,7 @@ const PURPLE = '#6366F1';
 export default function PostDetailCard({
   post,
   isLiked,
+  isSaved,
   onLikePress,
   onOpenAuthor,
   onSharePress,
@@ -108,8 +109,8 @@ export default function PostDetailCard({
         />
     
         <IconActionButton 
-          icon="bookmark-outline" 
-          color={colors.text || '#374151'}
+          icon={isSaved ? 'bookmark' : 'bookmark-outline'}
+          color={isSaved ? PURPLE : colors.text || '#374151'}
           style={styles.iconOnlyButton} 
           onPress={onSavePress} 
         />
