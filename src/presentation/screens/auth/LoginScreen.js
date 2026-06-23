@@ -13,6 +13,8 @@ import PasswordField from '../../components/auth/PasswordField';
 import { useAuthStore } from '../../../store/authStore';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
+import { notificationRepositoryImpl } from '../../../data/repositories/notificationRepositoryImpl';
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +39,25 @@ export default function LoginScreen({ navigation }) {
   useEffect(() => {
     clearError();
   }, [clearError]);
+  
+  useEffect(() => {
+    if (user?.id) {
+      const setupPushNotification = async () => {
+        try {
+          const token = await registerForPushNotificationsAsync(); 
+          
+          if (token) {
+            await notificationRepositoryImpl.updatePushToken(user.id, token);
+            console.log('[Push Notif] Token berhasil disimpan!');
+          }
+        } catch (error) {
+          console.log('[Push Notif] Gagal setup token saat login:', error?.message || error);
+        }
+      };
+
+      setupPushNotification();
+    }
+  }, [user]);
 
   const handleAction = async () => {
     try {

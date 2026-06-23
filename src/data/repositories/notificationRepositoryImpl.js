@@ -62,6 +62,17 @@ class NotificationRepositoryImpl {
     }
   }
 
+  async updatePushToken(userId, token) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, { expoPushToken: token }); 
+      console.log("[Repository] expoPushToken berhasil di-update di Firestore!");
+    } catch (error) {
+      console.error("Gagal update token di repo:", error.message);
+      throw error;
+    }
+  }
+
   async triggerPushNotification(targetUserId, title, body, data = {}) {
     try {
       const targetUserRef = doc(db, 'users', targetUserId);

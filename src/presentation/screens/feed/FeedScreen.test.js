@@ -35,13 +35,13 @@ jest.mock('../../components/feed/PostCard', () => {
   return ({ post }) => <Text>{post.userName}</Text>;
 });
 
-describe('Performance Test (Tugas Rahasia Asdos): FeedScreen', () => {
+describe('Performance Test: FeedScreen', () => {
   const mockNavigation = {
     navigate: jest.fn(),
     getParent: jest.fn(() => ({ navigate: jest.fn() })),
   };
 
-  it('harus mampu merender 50 postingan dalam waktu kurang dari 1.5 detik (1500ms)', () => {
+  it('harus mampu merender 50 postingan dalam waktu kurang dari 2.5 detik (2500ms)', () => {
     const dataPostinganBanyak = Array.from({ length: 50 }).map((_, index) => ({
       id: `post_${index}`,
       userId: `user_${index}`,
@@ -82,6 +82,6 @@ describe('Performance Test (Tugas Rahasia Asdos): FeedScreen', () => {
 
     expect(getByText('Mahasiswa UPNVJ Ke-0')).toBeTruthy();
    
-    expect(durasiRender).toBeLessThan(3500);
+    expect(durasiRender).toBeLessThan(2500);
   });
 });

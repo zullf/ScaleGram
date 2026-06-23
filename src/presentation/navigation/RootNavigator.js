@@ -1,8 +1,12 @@
-import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet} from 'react-native';
+import React, { useEffect } from 'react'; 
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native'; 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications'; 
+import * as Device from 'expo-device'; 
+import { notificationRepositoryImpl } from '../../data/repositories/notificationRepositoryImpl'; 
 
 import { appThemes } from '../theme/theme';
 import { useAuthStore } from '../../store/authStore';
@@ -12,12 +16,67 @@ import AuthStack from './AuthStack';
 
 import { useAutoSync } from '../hooks/useAutoSync';
 
+async function registerForPushNotificationsAsync() {
+  let token;
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      console.log('Gagal mendapatkan izin push token!');
+      return null;
+    }
+
+    const projectId = 
+      Constants.expoConfig?.extra?.eas?.projectId ?? 
+      Constants.easConfig?.projectId;
+
+    token = (await Notifications.getExpoPushTokenAsync({
+      projectId: projectId,
+    })).data;
+    
+    console.log('[Push Notif] Expo Token didapat:', token);
+  } else {
+    console.log('Harus menggunakan perangkat fisik untuk Push Notification');
+  }
+
+  return token;
+}
+
 export default function RootNavigator() {
   const { isSyncing } = useAutoSync();
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user); 
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      const setupToken = async () => {
+        try {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            await notificationRepositoryImpl.updatePushToken(user.id, token);
+            console.log('[Push Notif] Token berhasil disimpan!');
+          }
+        } catch (error) {
+          console.log('[Push Notif] Gagal mendaftarkan token otomatis:', error);
+        }
+      };
+
+      setupToken();
+    }
+  }, [isAuthenticated, user?.id]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -27,12 +86,10 @@ export default function RootNavigator() {
         translucent={false}
       />
 
-      {/* Navigasi Utama */}
       <NavigationContainer theme={appThemes[themeMode]}>
         {isAuthenticated ? <AppStack /> : <AuthStack />}
       </NavigationContainer>
 
-      {/* BANNER FLOATING */}
       {isSyncing && (
         <SafeAreaView style={styles.bannerContainer}>
           <View style={styles.bannerContent}>
@@ -41,7 +98,6 @@ export default function RootNavigator() {
           </View>
         </SafeAreaView>
       )}
-      
     </View>
   );
 }
