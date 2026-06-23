@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authUsecases } from '../domain/usecases/authUsecases';
-import { authRepository } from '../data/repositories/authRepositoryImpl';
 
 export const useAuthStore = create(
   persist(
@@ -27,7 +26,9 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const user = await authUsecases.register(email, password, displayName);
-          set({ user, isAuthenticated: true, isLoading: false });
+          await authUsecases.logout();
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return user;
         } catch (error) {
           set({ error: error.message, isLoading: false });
           throw error;

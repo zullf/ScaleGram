@@ -22,7 +22,7 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       await register(email, password, nama);
-      navigation.navigate('Login');
+      navigation.replace('Login');
     } catch (e) {
       console.log('Register gagal:', e?.message || e);
     }
