@@ -15,8 +15,8 @@ import { useAuthStore } from '../../../store/authStore';
 import { useFeed } from '../../hooks/useFeed';
 import { useThemeStore } from '../../../store/themeStore';
 import { appThemes } from '../../theme/theme';
-import { notificationRepositoryImpl } from '../../data/repositories/notificationRepositoryImpl';
-import { auth } from '../../config/firebase';
+import { notificationRepositoryImpl } from '../../../data/repositories/notificationRepositoryImpl';
+import { auth } from '../../../config/firebase';
 
 const profileTabs = [
   { key: 'posts', label: 'Postingan', icon: 'grid-outline' },

@@ -12,7 +12,7 @@ import { useFeed } from '../../hooks/useFeed';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { appThemes } from '../../theme/theme';
 import { useThemeStore } from '../../../store/themeStore';
-import { notificationRepositoryImpl } from '../../data/repositories/notificationRepositoryImpl';
+import { notificationRepositoryImpl } from '../../../data/repositories/notificationRepositoryImpl'
 
 const PURPLE = '#6366F1';
 
