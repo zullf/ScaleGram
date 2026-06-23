@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 
 import { appThemes } from '../theme/theme';
 import { useAuthStore } from '../../store/authStore';
@@ -16,9 +17,16 @@ export default function RootNavigator() {
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const themeMode = useThemeStore((state) => state.themeMode);
+  const colors = appThemes[themeMode].colors;
 
   return (
     <View style={{ flex: 1 }}>
+      <StatusBar
+        style={themeMode === 'dark' ? 'light' : 'dark'}
+        backgroundColor={colors.background || '#FFFFFF'}
+        translucent={false}
+      />
+
       {/* Navigasi Utama */}
       <NavigationContainer theme={appThemes[themeMode]}>
         {isAuthenticated ? <AppStack /> : <AuthStack />}

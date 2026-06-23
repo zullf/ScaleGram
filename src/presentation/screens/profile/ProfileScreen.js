@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { useCallback, useState, useEffect } from 'react';
+import { memo, useCallback, useState, useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  InteractionManager,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -55,11 +56,17 @@ export default function ProfileScreen({ navigation }) {
   const currentProfile = profileUser || user;
   const displayName = currentProfile?.displayName || 'ScaleGram User';
   const email = currentProfile?.email || null;
-  const userPosts = posts.filter((post) => post.userId === user?.id);
+  const userPosts = useMemo(
+    () => posts.filter((post) => post.userId === user?.id),
+    [posts, user?.id]
+  );
   const followersCount = followers.length;
   const followingCount = following.length;
 
-  const gridData = activeTab === 'posts' ? userPosts : savedPosts;
+  const gridData = useMemo(
+    () => (activeTab === 'posts' ? userPosts : savedPosts),
+    [activeTab, savedPosts, userPosts]
+  );
   const currentLoading = activeTab === 'posts' ? loading : loadingSaved;
 
   const loadProfile = useCallback(async () => {
@@ -138,11 +145,40 @@ export default function ProfileScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-      loadProfile();
-      loadSocialStats();
-      if (activeTab === 'saved') loadSavedPosts();
+      const task = InteractionManager.runAfterInteractions(() => {
+        refetch();
+        loadProfile();
+        loadSocialStats();
+        if (activeTab === 'saved') loadSavedPosts();
+      });
+
+      return () => task.cancel?.();
     }, [loadProfile, loadSocialStats, refetch, activeTab, loadSavedPosts])
+  );
+
+  const openFollowers = useCallback(() => setFollowListType('followers'), []);
+  const openFollowing = useCallback(() => setFollowListType('following'), []);
+  const closeFollowList = useCallback(() => setFollowListType(null), []);
+  const keyExtractor = useCallback((item) => item.id, []);
+  const renderGridItem = useCallback(
+    ({ item }) => (
+      <PostThumbnail
+        post={item}
+        onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
+      />
+    ),
+    [navigation]
+  );
+  const listEmptyComponent = useMemo(
+    () => (
+      <ProfileGridEmpty
+        activeTab={activeTab}
+        loading={currentLoading}
+        error={error}
+        colors={colors}
+      />
+    ),
+    [activeTab, colors, currentLoading, error]
   );
 
   const handleSelectFollowUser = (selectedUser) => {
@@ -184,13 +220,13 @@ export default function ProfileScreen({ navigation }) {
               value={String(followersCount)}
               label="Followers"
               colors={colors}
-              onPress={() => setFollowListType('followers')}
+              onPress={openFollowers}
             />
             <ProfileStat
               value={String(followingCount)}
               label="Following"
               colors={colors}
-              onPress={() => setFollowListType('following')}
+              onPress={openFollowing}
             />
           </View>
         </View>
@@ -236,27 +272,15 @@ export default function ProfileScreen({ navigation }) {
           <FlatList
             data={gridData}
             key={activeTab}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
             numColumns={3}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.gridContent,
               gridData.length === 0 && styles.emptyGridContent,
             ]}
-            renderItem={({ item }) => (
-              <PostThumbnail
-                post={item}
-                onPress={() => navigation.getParent()?.navigate('PostDetail', { post: item })}
-              />
-            )}
-            ListEmptyComponent={
-              <ProfileGridEmpty
-                activeTab={activeTab}
-                loading={currentLoading}
-                error={error}
-                colors={colors}
-              />
-            }
+            renderItem={renderGridItem}
+            ListEmptyComponent={listEmptyComponent}
             onEndReached={activeTab === 'posts' ? loadMore : undefined}
             onEndReachedThreshold={0.5}
           />
@@ -268,14 +292,14 @@ export default function ProfileScreen({ navigation }) {
         title={followListType === 'following' ? 'Following' : 'Followers'}
         users={followListType === 'following' ? following : followers}
         colors={colors}
-        onClose={() => setFollowListType(null)}
+        onClose={closeFollowList}
         onSelectUser={handleSelectFollowUser}
       />
     </SafeAreaView>
   );
 }
 
-function PostThumbnail({ post, onPress }) {
+const PostThumbnail = memo(function PostThumbnail({ post, onPress }) {
   return (
     <TouchableOpacity style={styles.gridCellWrap} activeOpacity={0.82} onPress={onPress}>
       <View style={styles.gridCell}>
@@ -287,7 +311,7 @@ function PostThumbnail({ post, onPress }) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 function ProfileGridEmpty({ activeTab, loading, error, colors }) {
   if (loading) {

@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useDependencies } from '../../../app/DependencyProvider';
 import { useThemeStore } from '../../../store/themeStore';
@@ -49,7 +50,10 @@ export default function OfflineCenterScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border || '#E5E7EB' }]}>
         <TouchableOpacity style={styles.backButton} activeOpacity={0.72} onPress={handleBack}>
           <Ionicons name="arrow-back" size={22} color={colors.text || '#111827'} />

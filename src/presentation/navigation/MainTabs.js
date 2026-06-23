@@ -85,6 +85,7 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={screenOptions}
       sceneContainerStyle={sceneContainerStyle}
+      detachInactiveScreens
     >
       <Tab.Screen 
         name="Home" 

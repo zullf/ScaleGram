@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -71,8 +71,63 @@ const SearchPostCard = memo(function SearchPostCard({ post, cardWidth, colors, o
   );
 });
 
+const SearchHeader = memo(function SearchHeader({
+  colors,
+  query,
+  onQueryChange,
+  onClearQuery,
+}) {
+  return (
+    <View style={styles.headerContent}>
+      <View style={[styles.brandHeader, { backgroundColor: colors.surface }]}>
+        <Image source={logoImage} style={styles.logo} contentFit="contain" />
+      </View>
+
+      <View
+        style={[
+          styles.searchBar,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Ionicons name="search-outline" size={20} color={colors.mutedText} />
+        <TextInput
+          value={query}
+          onChangeText={onQueryChange}
+          placeholder="Cari pengguna atau postingan..."
+          placeholderTextColor={colors.mutedText}
+          selectionColor={PURPLE}
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={[styles.searchInput, { color: colors.text }]}
+        />
+
+        {query ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onClearQuery}
+            accessibilityRole="button"
+            accessibilityLabel="Hapus pencarian"
+          >
+            <Ionicons name="close-circle" size={20} color={colors.mutedText} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <View style={styles.sectionHeading}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>For You</Text>
+          <View style={styles.sectionAccent} />
+        </View>
+        <Text style={[styles.sectionMeta, { color: colors.mutedText }]}>Jelajahi karya terbaru</Text>
+      </View>
+    </View>
+  );
+});
+
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const { width } = useWindowDimensions();
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
@@ -89,8 +144,16 @@ export default function SearchScreen({ navigation }) {
   const cardWidth =
     (width - GRID_PADDING * 2 - CARD_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
   const filteredPosts = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
+    const keyword = debouncedQuery.toLowerCase();
 
     if (!keyword) return posts;
 
@@ -99,7 +162,16 @@ export default function SearchScreen({ navigation }) {
       const caption = post.caption?.toLowerCase() || '';
       return userName.includes(keyword) || caption.includes(keyword);
     });
-  }, [posts, query]);
+  }, [debouncedQuery, posts]);
+
+  const handleQueryChange = useCallback((text) => {
+    setQuery(text);
+  }, []);
+
+  const clearQuery = useCallback(() => {
+    setQuery('');
+    setDebouncedQuery('');
+  }, []);
 
   const openPost = useCallback(
     (post) => {
@@ -120,54 +192,16 @@ export default function SearchScreen({ navigation }) {
     [cardWidth, colors, openPost]
   );
 
-  const renderHeader = useCallback(
+  const listHeader = useMemo(
     () => (
-      <View style={styles.headerContent}>
-        <View style={[styles.brandHeader, { backgroundColor: colors.surface }]}>
-          <Image source={logoImage} style={styles.logo} contentFit="contain" />
-        </View>
-
-        <View
-          style={[
-            styles.searchBar,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons name="search-outline" size={20} color={colors.mutedText} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Cari pengguna atau postingan..."
-            placeholderTextColor={colors.mutedText}
-            selectionColor={PURPLE}
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-
-          {query ? (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setQuery('')}
-              accessibilityRole="button"
-              accessibilityLabel="Hapus pencarian"
-            >
-              <Ionicons name="close-circle" size={20} color={colors.mutedText} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>For You</Text>
-            <View style={styles.sectionAccent} />
-          </View>
-          <Text style={[styles.sectionMeta, { color: colors.mutedText }]}>Jelajahi karya terbaru</Text>
-        </View>
-      </View>
+      <SearchHeader
+        colors={colors}
+        query={query}
+        onQueryChange={handleQueryChange}
+        onClearQuery={clearQuery}
+      />
     ),
-    [colors, query]
+    [clearQuery, colors, handleQueryChange, query]
   );
 
   const renderEmpty = useCallback(() => {
@@ -214,6 +248,8 @@ export default function SearchScreen({ navigation }) {
     );
   }, [colors, error, loading, query, refetch]);
 
+  const keyExtractor = useCallback((item) => item.id, []);
+
   return (
     <SafeAreaView
       edges={['top']}
@@ -221,11 +257,11 @@ export default function SearchScreen({ navigation }) {
     >
       <FlatList
         data={filteredPosts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderPost}
         numColumns={GRID_COLUMNS}
         columnWrapperStyle={styles.cardRow}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={
           loadingMore ? (
@@ -234,7 +270,8 @@ export default function SearchScreen({ navigation }) {
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
         onRefresh={refetch}
         refreshing={refreshing}
         onEndReached={loadMore}
