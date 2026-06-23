@@ -1,27 +1,11 @@
-import * as SQLite from 'expo-sqlite';
+import { initializeScaleGramDatabase, openScaleGramDatabase } from '../../sqlite/database';
 
 export const createSQLiteDataSource = (dbName = 'scalegram.db') => {
-  const db = SQLite.openDatabaseSync(dbName);
+  const db = openScaleGramDatabase(dbName);
 
   return {
     initDB: () => {
-      db.execSync(`
-        -- UPGRADE: Kita ubah tabel posts menjadi format JSON serbaguna
-        CREATE TABLE IF NOT EXISTS posts (
-          id TEXT PRIMARY KEY,
-          category TEXT DEFAULT 'feed', -- Bisa diisi: 'feed', 'profile', 'saved'
-          data_json TEXT, -- Menyimpan SELURUH object postingan dalam bentuk string JSON
-          savedAt TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS action_queue (
-          id TEXT PRIMARY KEY,
-          actionType TEXT,
-          payload TEXT,
-          status TEXT DEFAULT 'PENDING',
-          createdAt TEXT
-        );
-      `);
+      initializeScaleGramDatabase(db);
       console.log("[SQLite] Database & Tabel 'posts' dan 'action_queue' siap!");
     },
 
@@ -29,7 +13,7 @@ export const createSQLiteDataSource = (dbName = 'scalegram.db') => {
       const deleteStmt = db.prepareSync('DELETE FROM posts WHERE category = $category');
       
       const insertStmt = db.prepareSync(
-        'INSERT INTO posts (id, category, data_json, savedAt) VALUES ($id, $category, $data_json, $savedAt)'
+        'INSERT OR REPLACE INTO posts (id, category, data_json, savedAt) VALUES ($id, $category, $data_json, $savedAt)'
       );
       
       try {
@@ -63,7 +47,7 @@ export const createSQLiteDataSource = (dbName = 'scalegram.db') => {
         console.log(`[SQLite] Berhasil memuat ${parsedPosts.length} postingan offline dari kategori: ${category}.`);
         return parsedPosts;
       } catch (err) {
-        console.error("Gagal ambil cache:", err);
+        console.warn("Gagal ambil cache:", err);
         return [];
       }
     },
@@ -78,7 +62,7 @@ export const createSQLiteDataSource = (dbName = 'scalegram.db') => {
             post: JSON.parse(row.data_json),
           }));
       } catch (err) {
-        console.error("Gagal ambil daftar cache:", err);
+        console.warn("Gagal ambil daftar cache:", err);
         return [];
       }
     },

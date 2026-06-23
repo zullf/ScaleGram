@@ -1,28 +1,38 @@
 import AuthRepository from '../../domain/repositories/authRepository';
 import { firebaseAuthDataSource } from '../datasources/firebaseAuthDataSource';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase'; 
 import { pushNotificationHelper } from '../../utils/pushNotificationHelper';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
-import { mapFirebaseUserToEntity } from '../mappers/userMapper';
 
 class AuthRepositoryImpl extends AuthRepository {
   async _syncUserDocument(firebaseUser) {
     if (!firebaseUser?.uid) return;
 
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const userSnap = await getDoc(userRef);
+    const existingUser = userSnap.exists() ? userSnap.data() : {};
+    const existingPhotoUrl = existingUser.photoUrl || existingUser.photoURL || null;
+    const providerPhotoUrl = firebaseUser.photoURL || null;
+    const finalPhotoUrl = existingPhotoUrl || providerPhotoUrl;
     const displayName =
       firebaseUser.displayName ||
       firebaseUser.email?.split('@')?.[0] ||
       'ScaleGram User';
 
-    await setDoc(doc(db, 'users', firebaseUser.uid), {
+    const syncedUser = {
+      id: firebaseUser.uid,
       email: firebaseUser.email || null,
       displayName,
-      photoURL: firebaseUser.photoURL || null,
-      photoUrl: firebaseUser.photoURL || null,
+      photoURL: finalPhotoUrl,
+      photoUrl: finalPhotoUrl,
       updatedAt: serverTimestamp(),
-    }, { merge: true });
+    };
+
+    await setDoc(userRef, syncedUser, { merge: true });
+
+    return syncedUser;
   }
 
   
@@ -62,9 +72,9 @@ class AuthRepositoryImpl extends AuthRepository {
   async register(email, password, displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.registerWithEmail(email, password, displayName);
-      await this._syncUserDocument(firebaseUser);
+      const syncedUser = await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
-      return mapFirebaseUserToEntity(firebaseUser);
+      return syncedUser;
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -73,9 +83,9 @@ class AuthRepositoryImpl extends AuthRepository {
   async login(email, password) {
     try {
       const firebaseUser = await firebaseAuthDataSource.loginWithEmail(email, password);
-      await this._syncUserDocument(firebaseUser);
+      const syncedUser = await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
-      return mapFirebaseUserToEntity(firebaseUser);
+      return syncedUser;
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -84,9 +94,9 @@ class AuthRepositoryImpl extends AuthRepository {
   async googleSignIn(idToken) {
     try {
       const firebaseUser = await firebaseAuthDataSource.googleSignIn(idToken);
-      await this._syncUserDocument(firebaseUser);
+      const syncedUser = await this._syncUserDocument(firebaseUser);
       await this._saveDeviceToken(firebaseUser.uid);
-      return mapFirebaseUserToEntity(firebaseUser);
+      return syncedUser;
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
@@ -122,8 +132,7 @@ class AuthRepositoryImpl extends AuthRepository {
   async updateProfile(displayName) {
     try {
       const firebaseUser = await firebaseAuthDataSource.updateUserProfile(displayName);
-      await this._syncUserDocument(firebaseUser);
-      return mapFirebaseUserToEntity(firebaseUser);
+      return await this._syncUserDocument(firebaseUser);
     } catch (error) {
       throw this._handleFirebaseAuthError(error);
     }
