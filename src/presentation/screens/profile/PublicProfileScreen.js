@@ -261,6 +261,11 @@ export default function PublicProfileScreen({ navigation, route }) {
             }
             onEndReached={activeTab === 'posts' ? loadMore : undefined}
             onEndReachedThreshold={0.5}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            updateCellsBatchingPeriod={50}
+            windowSize={7}
+            removeClippedSubviews
           />
         </View>
       </PanGestureHandler>

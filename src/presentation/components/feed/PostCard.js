@@ -27,11 +27,14 @@ const PostCard = React.memo(function PostCard({
   const tags = Array.isArray(post.tags) ? post.tags : [];
   const authorName = [post.userName, post.displayName, post.userEmail?.split('@')?.[0]]
     .find((name) => name && !['Pengguna', 'User', 'ScaleGram User'].includes(String(name).trim())) || 'ScaleGram User';
-  const cardOpacity = useRef(new Animated.Value(0)).current;
-  const cardTranslateY = useRef(new Animated.Value(18)).current;
+  const shouldAnimateEntry = index < 5;
+  const cardOpacity = useRef(new Animated.Value(shouldAnimateEntry ? 0 : 1)).current;
+  const cardTranslateY = useRef(new Animated.Value(shouldAnimateEntry ? 18 : 0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    if (!shouldAnimateEntry) return;
+
     Animated.parallel([
       Animated.timing(cardOpacity, {
         toValue: 1,
@@ -46,7 +49,7 @@ const PostCard = React.memo(function PostCard({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [cardOpacity, cardTranslateY, index]);
+  }, [cardOpacity, cardTranslateY, index, shouldAnimateEntry]);
 
   const playLikeFeedback = useCallback(() => {
     Animated.sequence([
@@ -127,7 +130,13 @@ const PostCard = React.memo(function PostCard({
       <TapGestureHandler numberOfTaps={2} maxDelayMs={240} onActivated={handleMediaDoubleTap}>
         <Animated.View>
           {hasImage ? (
-            <Image source={{ uri: post.imageUrl }} style={styles.postImage} contentFit="cover" />
+            <Image
+              source={{ uri: post.imageUrl }}
+              style={styles.postImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={post.id}
+            />
           ) : (
             <View style={[styles.imagePlaceholder, { backgroundColor: colors.background || '#F3F4F6' }]}>
               <Ionicons name="image-outline" size={28} color={colors.mutedText || '#9CA3AF'} />

@@ -42,7 +42,7 @@ export default function ProfileScreen({ navigation }) {
   const updateUser = useAuthStore((state) => state.updateUser);
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
-  const { posts, loading, error, refetch, loadMore } = useFeed(30);
+  const { posts, loading, error, loadMore } = useFeed(30);
 
   const [activeTab, setActiveTab] = useState('posts');
   const [profileUser, setProfileUser] = useState(user);
@@ -146,14 +146,13 @@ export default function ProfileScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       const task = InteractionManager.runAfterInteractions(() => {
-        refetch();
         loadProfile();
         loadSocialStats();
         if (activeTab === 'saved') loadSavedPosts();
       });
 
       return () => task.cancel?.();
-    }, [loadProfile, loadSocialStats, refetch, activeTab, loadSavedPosts])
+    }, [loadProfile, loadSocialStats, activeTab, loadSavedPosts])
   );
 
   const openFollowers = useCallback(() => setFollowListType('followers'), []);
@@ -283,6 +282,11 @@ export default function ProfileScreen({ navigation }) {
             ListEmptyComponent={listEmptyComponent}
             onEndReached={activeTab === 'posts' ? loadMore : undefined}
             onEndReachedThreshold={0.5}
+            initialNumToRender={12}
+            maxToRenderPerBatch={12}
+            updateCellsBatchingPeriod={50}
+            windowSize={7}
+            removeClippedSubviews
           />
         </View>
       </PanGestureHandler>
@@ -304,7 +308,13 @@ const PostThumbnail = memo(function PostThumbnail({ post, onPress }) {
     <TouchableOpacity style={styles.gridCellWrap} activeOpacity={0.82} onPress={onPress}>
       <View style={styles.gridCell}>
         {post.imageUrl ? (
-          <Image source={{ uri: post.imageUrl }} style={styles.thumbnailImage} contentFit="cover" />
+          <Image
+            source={{ uri: post.imageUrl }}
+            style={styles.thumbnailImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={post.id}
+          />
         ) : (
           <Ionicons name="image-outline" size={24} color={PURPLE} />
         )}

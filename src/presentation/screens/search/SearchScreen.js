@@ -44,7 +44,8 @@ const SearchPostCard = memo(function SearchPostCard({ post, cardWidth, colors, o
           source={{ uri: post.imageUrl }}
           style={styles.postImage}
           contentFit="cover"
-          transition={160}
+          cachePolicy="memory-disk"
+          recyclingKey={post.id}
         />
       ) : (
         <View style={styles.imagePlaceholder}>

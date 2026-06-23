@@ -9,7 +9,13 @@ export default function ProfilePostGridItem({ post, onPress }) {
     <TouchableOpacity style={styles.gridCellWrap} activeOpacity={0.82} onPress={onPress}>
       <View style={styles.gridCell}>
         {post.imageUrl ? (
-          <Image source={{ uri: post.imageUrl }} style={styles.thumbnailImage} contentFit="cover" />
+          <Image
+            source={{ uri: post.imageUrl }}
+            style={styles.thumbnailImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={post.id}
+          />
         ) : (
           <Ionicons name="image-outline" size={24} color={PURPLE} />
         )}
