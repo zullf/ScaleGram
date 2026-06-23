@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useEditProfile } from '../../../domain/usecases/userUsecases';
 import { useAuthStore } from '../../../store/authStore';
+import UploadSuccessModal from '../../components/post/UploadSuccessModal';
 
 export default function EditProfileScreen({ navigation, route }) {
   const { currentUser } = route.params || {};
@@ -24,6 +25,7 @@ export default function EditProfileScreen({ navigation, route }) {
   const [photoUri, setPhotoUri] = useState(existingPhotoUrl);
   const [base64Photo, setBase64Photo] = useState(null);
   const [photoFileData, setPhotoFileData] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const { editProfile, isLoading } = useEditProfile();
   const updateUser = useAuthStore((state) => state.updateUser);
@@ -73,9 +75,7 @@ export default function EditProfileScreen({ navigation, route }) {
         photoURL: result.data.photoURL ?? result.data.photoUrl ?? null,
       });
 
-      Alert.alert('Sukses!', 'Profil berhasil di-update.', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setShowSuccessModal(true);
     } else {
       Alert.alert('Gagal', result.error);
     }
@@ -137,6 +137,29 @@ export default function EditProfileScreen({ navigation, route }) {
           />
         </View>
       </View>
+
+      <UploadSuccessModal
+        visible={showSuccessModal}
+        colors={{
+          card: '#FFFFFF',
+          text: '#111827',
+          mutedText: '#6B7280',
+          border: '#E5E7EB',
+        }}
+        title="Profile updated"
+        message="Perubahan profile kamu berhasil disimpan dan sudah diperbarui di aplikasi."
+        previewLabel="Nama"
+        primaryLabel="Selesai"
+        primaryIcon="checkmark"
+        postPreview={{
+          imageUri: photoUri,
+          caption: name,
+        }}
+        onClose={() => {
+          setShowSuccessModal(false);
+          navigation.goBack();
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

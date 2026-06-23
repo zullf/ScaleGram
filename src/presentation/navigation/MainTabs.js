@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
+import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { appThemes } from '../theme/theme';
@@ -68,6 +69,9 @@ export default function MainTabs() {
       fontSize: 11,
       fontWeight: '600',
     },
+    tabBarButton: (props) => (
+      <TouchableOpacity {...props} activeOpacity={0.72} />
+    ),
     tabBarIcon: ({ color, focused }) => (
       <Ionicons
         name={focused ? tabIcons[route.name].focused : tabIcons[route.name].unfocused}

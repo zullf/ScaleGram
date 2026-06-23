@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const PURPLE = '#6366F1';
 
@@ -43,10 +43,11 @@ export default function AnimatedProfileTabs({ tabs, activeTab, colors = {}, onCh
         const isActive = activeTab === tab.key;
 
         return (
-          <Pressable
+          <TouchableOpacity
             key={tab.key}
             style={styles.tabButton}
             onPress={() => onChange(tab.key)}
+            activeOpacity={0.72}
           >
             <Ionicons
               name={tab.icon}
@@ -61,7 +62,7 @@ export default function AnimatedProfileTabs({ tabs, activeTab, colors = {}, onCh
             >
               {tab.label}
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         );
       })}
 

@@ -79,7 +79,7 @@ const SearchHeader = memo(function SearchHeader({
 }) {
   return (
     <View style={styles.headerContent}>
-      <View style={[styles.brandHeader, { backgroundColor: colors.surface }]}>
+      <View style={[styles.brandHeader, { backgroundColor: colors.background }]}>
         <Image source={logoImage} style={styles.logo} contentFit="contain" />
       </View>
 

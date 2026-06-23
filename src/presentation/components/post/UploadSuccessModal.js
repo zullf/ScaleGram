@@ -5,7 +5,17 @@ import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native
 
 const PURPLE = '#6366F1';
 
-export default function UploadSuccessModal({ visible, postPreview, colors = {}, onClose }) {
+export default function UploadSuccessModal({
+  visible,
+  postPreview,
+  colors = {},
+  title = 'Postingan sudah tayang',
+  message = 'Konten kamu berhasil diunggah dan sekarang sudah masuk ke feed ScaleGram.',
+  previewLabel = 'Caption',
+  primaryLabel = 'Lihat feed',
+  primaryIcon = 'arrow-forward',
+  onClose,
+}) {
   const scale = useRef(new Animated.Value(0.92)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -49,10 +59,10 @@ export default function UploadSuccessModal({ visible, postPreview, colors = {}, 
           </View>
 
           <Text style={[styles.title, { color: colors.text || '#111827' }]}>
-            Postingan sudah tayang
+            {title}
           </Text>
           <Text style={[styles.message, { color: colors.mutedText || '#6B7280' }]}>
-            Konten kamu berhasil diunggah dan sekarang sudah masuk ke feed ScaleGram.
+            {message}
           </Text>
 
           <View style={[styles.previewRow, { borderColor: colors.border || '#E5E7EB' }]}>
@@ -65,7 +75,7 @@ export default function UploadSuccessModal({ visible, postPreview, colors = {}, 
             )}
             <View style={styles.previewTextWrap}>
               <Text style={[styles.previewLabel, { color: colors.mutedText || '#6B7280' }]}>
-                Caption
+                {previewLabel}
               </Text>
               <Text style={[styles.previewCaption, { color: colors.text || '#111827' }]} numberOfLines={2}>
                 {postPreview?.caption || 'Postingan baru'}
@@ -74,8 +84,8 @@ export default function UploadSuccessModal({ visible, postPreview, colors = {}, 
           </View>
 
           <Pressable style={styles.primaryButton} onPress={onClose}>
-            <Text style={styles.primaryButtonText}>Lihat feed</Text>
-            <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
+            <Ionicons name={primaryIcon} size={17} color="#FFFFFF" />
           </Pressable>
         </Animated.View>
       </View>
