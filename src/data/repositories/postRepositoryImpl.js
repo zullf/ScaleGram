@@ -111,18 +111,17 @@ export function createPostRepository(firebaseDataSource, sqliteDataSource) {
         const lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
         if (sqliteDataSource && !lastVisible) {
-           sqliteDataSource.cachePosts(posts, 'feed');
+          sqliteDataSource.cachePosts(posts, 'feed');
         }
 
         return { posts, lastDoc };
 
       } catch (error) {
-        console.error(" ALASAN ASLI FIREBASE GAGAL:", error);
-        console.log("Firebase gagal/Offline. Membaca Feed dari brankas SQLite...");
+        console.warn("Firebase gagal/Offline. Membaca Feed dari brankas SQLite:", error?.message || error);
         
         if (sqliteDataSource) {
-           const cachedPosts = sqliteDataSource.getCachedPosts('feed');
-           return { posts: cachedPosts, lastDoc: null }; 
+          const cachedPosts = sqliteDataSource.getCachedPosts('feed');
+          return { posts: cachedPosts, lastDoc: null }; 
         }
         
         throw error;
