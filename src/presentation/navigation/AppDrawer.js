@@ -198,7 +198,13 @@ function MinimalDrawer({ visible, colors, onClose, onNavigate }) {
               },
             ]}
           >
-            <ScrollView contentContainerStyle={styles.drawerContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              contentContainerStyle={[
+                styles.drawerContent,
+                { paddingBottom: Math.max(insets.bottom + 16, 28) },
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.drawerHeader}>
                 <View style={styles.avatarRing}>
                   <UserAvatar name={displayName} uri={user?.photoURL} size={58} />
@@ -319,7 +325,6 @@ const styles = StyleSheet.create({
   drawerContent: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingBottom: 20,
   },
   drawerHeader: {
     flexDirection: 'row',

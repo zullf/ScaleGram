@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
+import { FlatList, InteractionManager, SafeAreaView, StyleSheet, View } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
@@ -36,8 +36,14 @@ export default function PublicProfileScreen({ navigation, route }) {
   const routeProfileUser = useMemo(() => normalizeProfileUser(route.params?.user), [route.params?.user]);
   const [profileUser, setProfileUser] = useState(routeProfileUser);
   const isOwnProfile = currentUser?.id === profileUser.id;
-  const userPosts = posts.filter((post) => post.userId === profileUser.id);
-  const gridData = activeTab === 'posts' ? userPosts : [];
+  const userPosts = useMemo(
+    () => posts.filter((post) => post.userId === profileUser.id),
+    [posts, profileUser.id]
+  );
+  const gridData = useMemo(
+    () => (activeTab === 'posts' ? userPosts : []),
+    [activeTab, userPosts]
+  );
   const followersCount = followers.length;
   const followingCount = following.length;
 
@@ -52,20 +58,28 @@ export default function PublicProfileScreen({ navigation, route }) {
   }, [isOwnProfile, navigation]);
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const task = InteractionManager.runAfterInteractions(async () => {
       if (!routeProfileUser.id) return;
 
       try {
         const latestProfile = await userRepository.getProfile(routeProfileUser.id);
         if (latestProfile) {
-          setProfileUser(normalizeProfileUser(latestProfile));
+          const normalizedProfile = normalizeProfileUser(latestProfile);
+          setProfileUser((currentProfile) =>
+            currentProfile.id === normalizedProfile.id &&
+            currentProfile.displayName === normalizedProfile.displayName &&
+            currentProfile.photoURL === normalizedProfile.photoURL &&
+            currentProfile.bio === normalizedProfile.bio
+              ? currentProfile
+              : normalizedProfile
+          );
         }
       } catch (err) {
         console.log('Gagal memuat profile user:', err?.message || err);
       }
-    };
+    });
 
-    loadProfile();
+    return () => task.cancel?.();
   }, [routeProfileUser.id]);
 
   const loadSocialState = useCallback(async () => {
@@ -89,10 +103,11 @@ export default function PublicProfileScreen({ navigation, route }) {
   }, [currentUser?.id, isOwnProfile, profileUser.id]);
 
   useEffect(() => {
-    loadSocialState();
+    const task = InteractionManager.runAfterInteractions(loadSocialState);
+    return () => task.cancel?.();
   }, [loadSocialState]);
 
-  const handleToggleFollow = async () => {
+  const handleToggleFollow = useCallback(async () => {
     if (!currentUser?.id || !profileUser.id || isOwnProfile) return;
 
     const nextFollowing = !isFollowing;
@@ -122,7 +137,7 @@ export default function PublicProfileScreen({ navigation, route }) {
     } finally {
       setFollowLoading(false);
     }
-  };
+  }, [currentUser, isFollowing, isOwnProfile, loadSocialState, profileUser.id]);
 
   const handleProfileSwipe = useCallback((event) => {
     const { state, translationX } = event.nativeEvent;
@@ -138,7 +153,7 @@ export default function PublicProfileScreen({ navigation, route }) {
     }
   }, []);
 
-  const handleSelectFollowUser = (selectedUser) => {
+  const handleSelectFollowUser = useCallback((selectedUser) => {
     const normalizedUser = normalizeProfileUser(selectedUser);
     setFollowListType(null);
 
@@ -150,7 +165,60 @@ export default function PublicProfileScreen({ navigation, route }) {
     }
 
     navigation.push('PublicProfile', { user: normalizedUser });
-  };
+  }, [currentUser?.id, navigation]);
+
+  const openFollowers = useCallback(() => setFollowListType('followers'), []);
+  const openFollowing = useCallback(() => setFollowListType('following'), []);
+  const closeFollowList = useCallback(() => setFollowListType(null), []);
+  const keyExtractor = useCallback((item) => item.id, []);
+  const renderGridItem = useCallback(
+    ({ item }) => (
+      <ProfilePostGridItem
+        post={item}
+        onPress={() => navigation.navigate('PostDetail', { post: item })}
+      />
+    ),
+    [navigation]
+  );
+  const listHeader = useMemo(
+    () => (
+      <>
+        <PublicProfileHeader
+          colors={colors}
+          profileUser={profileUser}
+          postsCount={userPosts.length}
+          followersCount={followersCount}
+          followingCount={followingCount}
+          isOwnProfile={isOwnProfile}
+          isFollowing={isFollowing}
+          followLoading={followLoading}
+          onToggleFollow={handleToggleFollow}
+          onFollowersPress={openFollowers}
+          onFollowingPress={openFollowing}
+        />
+        <AnimatedProfileTabs
+          tabs={profileTabs}
+          activeTab={activeTab}
+          colors={colors}
+          onChange={setActiveTab}
+        />
+      </>
+    ),
+    [
+      activeTab,
+      colors,
+      followLoading,
+      followersCount,
+      followingCount,
+      handleToggleFollow,
+      isFollowing,
+      isOwnProfile,
+      openFollowers,
+      openFollowing,
+      profileUser,
+      userPosts.length,
+    ]
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -169,42 +237,15 @@ export default function PublicProfileScreen({ navigation, route }) {
         <View style={styles.contentArea}>
           <FlatList
             data={gridData}
-            keyExtractor={(item) => item.id}
+            keyExtractor={keyExtractor}
             numColumns={3}
             showsVerticalScrollIndicator={false}
-            ListHeaderComponent={
-              <>
-                <PublicProfileHeader
-                  colors={colors}
-                  profileUser={profileUser}
-                  postsCount={userPosts.length}
-                  followersCount={followersCount}
-                  followingCount={followingCount}
-                  isOwnProfile={isOwnProfile}
-                  isFollowing={isFollowing}
-                  followLoading={followLoading}
-                  onToggleFollow={handleToggleFollow}
-                  onFollowersPress={() => setFollowListType('followers')}
-                  onFollowingPress={() => setFollowListType('following')}
-                />
-                <AnimatedProfileTabs
-                  tabs={profileTabs}
-                  activeTab={activeTab}
-                  colors={colors}
-                  onChange={setActiveTab}
-                />
-              </>
-            }
+            ListHeaderComponent={listHeader}
             contentContainerStyle={[
               styles.gridContent,
               gridData.length === 0 && styles.emptyGridContent,
             ]}
-            renderItem={({ item }) => (
-              <ProfilePostGridItem
-                post={item}
-                onPress={() => navigation.navigate('PostDetail', { post: item })}
-              />
-            )}
+            renderItem={renderGridItem}
             ListEmptyComponent={
               <ProfileGridEmpty
                 loading={loading && activeTab === 'posts'}
@@ -229,7 +270,7 @@ export default function PublicProfileScreen({ navigation, route }) {
         title={followListType === 'following' ? 'Following' : 'Followers'}
         users={followListType === 'following' ? following : followers}
         colors={colors}
-        onClose={() => setFollowListType(null)}
+        onClose={closeFollowList}
         onSelectUser={handleSelectFollowUser}
       />
     </SafeAreaView>
