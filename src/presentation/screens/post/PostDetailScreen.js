@@ -78,7 +78,7 @@ export default function PostDetailScreen({ navigation, route }) {
         await socialUsecases.likePost(user.id, localPost.id);
         await notificationRepositoryImpl.createNotification(
           user.id,     
-          localPost.ownerId, 
+          localPost.userId, 
           'like',          
           localPost.id       
         );
@@ -194,7 +194,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
       await notificationRepositoryImpl.createNotification(
         user.id,       
-        localPost.ownerId, 
+        localPost.userId,
         'comment',       
         localPost.id       
       );
