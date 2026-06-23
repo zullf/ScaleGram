@@ -4,6 +4,7 @@ import AppDrawer from './AppDrawer';
 import PostDetailScreen from '../screens/post/PostDetailScreen';
 import PublicProfileScreen from '../screens/profile/PublicProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
+import FollowNetworkScreen from '../screens/profile/FollowNetworkScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -15,6 +16,7 @@ export default function AppStack() {
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
       <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+      <Stack.Screen name="FollowNetwork" component={FollowNetworkScreen} />
     </Stack.Navigator>
   );
 }

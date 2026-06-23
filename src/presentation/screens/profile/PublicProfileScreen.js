@@ -3,7 +3,6 @@ import { FlatList, InteractionManager, SafeAreaView, StyleSheet, View } from 're
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
-import FollowListModal from '../../components/profile/FollowListModal';
 import ProfileGridEmpty from '../../components/profile/ProfileGridEmpty';
 import ProfileHeaderBar from '../../components/profile/ProfileHeaderBar';
 import ProfilePostGridItem from '../../components/profile/ProfilePostGridItem';
@@ -31,7 +30,6 @@ export default function PublicProfileScreen({ navigation, route }) {
   const [followLoading, setFollowLoading] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [followListType, setFollowListType] = useState(null);
 
   const routeProfileUser = useMemo(() => normalizeProfileUser(route.params?.user), [route.params?.user]);
   const [profileUser, setProfileUser] = useState(routeProfileUser);
@@ -153,23 +151,16 @@ export default function PublicProfileScreen({ navigation, route }) {
     }
   }, []);
 
-  const handleSelectFollowUser = useCallback((selectedUser) => {
-    const normalizedUser = normalizeProfileUser(selectedUser);
-    setFollowListType(null);
+  const openFollowNetwork = useCallback((initialTab) => {
+    if (!profileUser.id) return;
 
-    if (!normalizedUser.id) return;
-
-    if (normalizedUser.id === currentUser?.id) {
-      navigation.replace('MainTabs', { screen: 'Profile' });
-      return;
-    }
-
-    navigation.push('PublicProfile', { user: normalizedUser });
-  }, [currentUser?.id, navigation]);
-
-  const openFollowers = useCallback(() => setFollowListType('followers'), []);
-  const openFollowing = useCallback(() => setFollowListType('following'), []);
-  const closeFollowList = useCallback(() => setFollowListType(null), []);
+    navigation.navigate('FollowNetwork', {
+      userId: profileUser.id,
+      initialTab,
+    });
+  }, [navigation, profileUser.id]);
+  const openFollowers = useCallback(() => openFollowNetwork('followers'), [openFollowNetwork]);
+  const openFollowing = useCallback(() => openFollowNetwork('following'), [openFollowNetwork]);
   const keyExtractor = useCallback((item) => item.id, []);
   const renderGridItem = useCallback(
     ({ item }) => (
@@ -269,15 +260,6 @@ export default function PublicProfileScreen({ navigation, route }) {
           />
         </View>
       </PanGestureHandler>
-
-      <FollowListModal
-        visible={!!followListType}
-        title={followListType === 'following' ? 'Following' : 'Followers'}
-        users={followListType === 'following' ? following : followers}
-        colors={colors}
-        onClose={closeFollowList}
-        onSelectUser={handleSelectFollowUser}
-      />
     </SafeAreaView>
   );
 }

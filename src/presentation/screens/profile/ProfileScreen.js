@@ -16,9 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import AnimatedProfileTabs from '../../components/profile/AnimatedProfileTabs';
-import FollowListModal from '../../components/profile/FollowListModal';
 import UserAvatar from '../../components/common/UserAvatar';
-import { normalizeProfileUser } from '../../components/profile/profileFormatters';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
 import { useThemeStore } from '../../../store/themeStore';
@@ -48,7 +46,6 @@ export default function ProfileScreen({ navigation }) {
   const [profileUser, setProfileUser] = useState(user);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [followListType, setFollowListType] = useState(null);
 
   const [savedPosts, setSavedPosts] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
@@ -155,9 +152,17 @@ export default function ProfileScreen({ navigation }) {
     }, [loadProfile, loadSocialStats, activeTab, loadSavedPosts])
   );
 
-  const openFollowers = useCallback(() => setFollowListType('followers'), []);
-  const openFollowing = useCallback(() => setFollowListType('following'), []);
-  const closeFollowList = useCallback(() => setFollowListType(null), []);
+  const openFollowNetwork = useCallback((initialTab) => {
+    const profileId = currentProfile?.id || user?.id;
+    if (!profileId) return;
+
+    navigation.getParent()?.navigate('FollowNetwork', {
+      userId: profileId,
+      initialTab,
+    });
+  }, [currentProfile?.id, navigation, user?.id]);
+  const openFollowers = useCallback(() => openFollowNetwork('followers'), [openFollowNetwork]);
+  const openFollowing = useCallback(() => openFollowNetwork('following'), [openFollowNetwork]);
   const keyExtractor = useCallback((item) => item.id, []);
   const renderGridItem = useCallback(
     ({ item }) => (
@@ -179,15 +184,6 @@ export default function ProfileScreen({ navigation }) {
     ),
     [activeTab, colors, currentLoading, error]
   );
-
-  const handleSelectFollowUser = (selectedUser) => {
-    const normalizedUser = normalizeProfileUser(selectedUser);
-    setFollowListType(null);
-
-    if (!normalizedUser.id || normalizedUser.id === user?.id) return;
-
-    navigation.getParent()?.navigate('PublicProfile', { user: normalizedUser });
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -291,14 +287,6 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </PanGestureHandler>
 
-      <FollowListModal
-        visible={!!followListType}
-        title={followListType === 'following' ? 'Following' : 'Followers'}
-        users={followListType === 'following' ? following : followers}
-        colors={colors}
-        onClose={closeFollowList}
-        onSelectUser={handleSelectFollowUser}
-      />
     </SafeAreaView>
   );
 }
