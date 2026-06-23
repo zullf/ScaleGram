@@ -12,6 +12,7 @@ import { appThemes } from '../../theme/theme';
 import { useThemeStore } from '../../../store/themeStore';
 
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
+import { notificationRepositoryImpl } from '../../data/repositories/notificationRepositoryImpl';
 
 const PURPLE = '#6366F1';
 
@@ -75,6 +76,12 @@ export default function PostDetailScreen({ navigation, route }) {
         await socialUsecases.unlikePost(user.id, localPost.id);
       } else {
         await socialUsecases.likePost(user.id, localPost.id);
+        await notificationRepositoryImpl.createNotification(
+          user.id,     
+          localPost.ownerId, 
+          'like',          
+          localPost.id       
+        );
       }
     } catch (err) {
       console.error('Error toggle like:', err);
@@ -184,6 +191,13 @@ export default function PostDetailScreen({ navigation, route }) {
         userName: getCurrentUserName(user),
         userAvatar: user?.photoURL || null,
       });
+
+      await notificationRepositoryImpl.createNotification(
+        user.id,       
+        localPost.ownerId, 
+        'comment',       
+        localPost.id       
+      );
 
       setComments((currentComments) =>
         currentComments.map((comment) =>

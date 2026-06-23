@@ -12,6 +12,7 @@ import { useFeed } from '../../hooks/useFeed';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { appThemes } from '../../theme/theme';
 import { useThemeStore } from '../../../store/themeStore';
+import { notificationRepositoryImpl } from '../../data/repositories/notificationRepositoryImpl';
 
 const PURPLE = '#6366F1';
 
@@ -61,6 +62,12 @@ export default function FeedScreen({ navigation }) {
         await socialUsecases.unlikePost(user.id, post.id);
       } else {
         await socialUsecases.likePost(user.id, post.id);
+        await notificationRepositoryImpl.createNotification(
+          user.id,         
+          post.userId,      
+          'like',           
+          post.id          
+        );
       }
     } catch (err) {
       console.error('Error updating like:', err);
