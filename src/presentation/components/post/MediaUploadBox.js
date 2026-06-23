@@ -21,7 +21,7 @@ export default function MediaUploadBox({ imageUri, colors = {}, disabled, onPres
             Upload Media
           </Text>
           <Text style={[styles.uploadSubtitle, { color: colors.mutedText || '#9CA3AF' }]}>
-            High-res images or 4K video (max 500MB)
+            Klik untuk upload media
           </Text>
         </View>
       )}

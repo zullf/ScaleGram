@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, FlatList, Share, StatusBar, StyleSheet, View } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 
 import { useDependencies } from '../../../app/DependencyProvider';
 import ScreenHeader from '../../components/common/ScreenHeader';
@@ -28,6 +29,14 @@ export default function FeedScreen({ navigation }) {
   const themeMode = useThemeStore((state) => state.themeMode);
   const colors = appThemes[themeMode].colors;
   const { openDrawer } = useDrawerController();
+  const handleFeedSwipe = React.useCallback((event) => {
+    const { state, translationX, translationY } = event.nativeEvent;
+
+    if (state !== State.END) return;
+    if (translationX > 55 && Math.abs(translationY) < 30) {
+      openDrawer();
+    }
+  }, [openDrawer]);
 
   const handleLike = async (post) => {
     if (!user?.id || !post?.id) return;
@@ -202,34 +211,45 @@ export default function FeedScreen({ navigation }) {
         barStyle={themeMode === 'dark' ? 'light-content' : 'dark-content'}
         backgroundColor={colors.card || '#FFFFFF'}
       />
-      <ScreenHeader showMenu showLogo onMenuPress={openDrawer} colors={colors} />
+      <PanGestureHandler
+        activeOffsetX={[-18, 18]}
+        failOffsetY={[-24, 24]}
+        onHandlerStateChange={handleFeedSwipe}
+      >
+        <View style={styles.feedShell}>
+          <ScreenHeader showMenu showLogo onMenuPress={openDrawer} colors={colors} />
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.feedContent,
-          posts.length === 0 && styles.emptyFeedContent,
-        ]}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
-        windowSize={11}
-        removeClippedSubviews
-        onRefresh={refetch}
-        refreshing={refreshing}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footerLoader} color={PURPLE} /> : null}
-      />
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderPost}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.feedContent,
+              posts.length === 0 && styles.emptyFeedContent,
+            ]}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
+            windowSize={11}
+            removeClippedSubviews
+            onRefresh={refetch}
+            refreshing={refreshing}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListEmptyComponent={renderEmpty}
+            ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.footerLoader} color={PURPLE} /> : null}
+          />
+        </View>
+      </PanGestureHandler>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  feedShell: {
     flex: 1,
   },
   feedContent: {

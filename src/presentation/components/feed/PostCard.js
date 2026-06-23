@@ -104,9 +104,6 @@ const PostCard = React.memo(function PostCard({
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.text || '#111827'} />
-        </TouchableOpacity>
       </View>
 
       {post.caption ? (
@@ -200,12 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,
-  },
-  moreButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   caption: {
     fontSize: 14,
