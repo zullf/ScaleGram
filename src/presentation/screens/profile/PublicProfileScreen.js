@@ -8,6 +8,7 @@ import ProfileHeaderBar from '../../components/profile/ProfileHeaderBar';
 import ProfilePostGridItem from '../../components/profile/ProfilePostGridItem';
 import PublicProfileHeader from '../../components/profile/PublicProfileHeader';
 import { normalizeProfileUser } from '../../components/profile/profileFormatters';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
 import { userRepository } from '../../../data/repositories/userRepositoryImpl';
 import { socialUsecases } from '../../../domain/usecases/socialUsecases';
 import { useAuthStore } from '../../../store/authStore';
@@ -28,6 +29,7 @@ export default function PublicProfileScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [unfollowConfirmVisible, setUnfollowConfirmVisible] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
 
@@ -105,10 +107,9 @@ export default function PublicProfileScreen({ navigation, route }) {
     return () => task.cancel?.();
   }, [loadSocialState]);
 
-  const handleToggleFollow = useCallback(async () => {
+  const updateFollowState = useCallback(async (nextFollowing) => {
     if (!currentUser?.id || !profileUser.id || isOwnProfile) return;
 
-    const nextFollowing = !isFollowing;
     setIsFollowing(nextFollowing);
     setFollowers((currentFollowers) => {
       if (nextFollowing) {
@@ -135,7 +136,16 @@ export default function PublicProfileScreen({ navigation, route }) {
     } finally {
       setFollowLoading(false);
     }
-  }, [currentUser, isFollowing, isOwnProfile, loadSocialState, profileUser.id]);
+  }, [currentUser, isOwnProfile, loadSocialState, profileUser.id]);
+
+  const handleToggleFollow = useCallback(() => {
+    if (!isFollowing) {
+      updateFollowState(true);
+      return;
+    }
+
+    setUnfollowConfirmVisible(true);
+  }, [isFollowing, updateFollowState]);
 
   const handleProfileSwipe = useCallback((event) => {
     const { state, translationX } = event.nativeEvent;
@@ -260,6 +270,20 @@ export default function PublicProfileScreen({ navigation, route }) {
           />
         </View>
       </PanGestureHandler>
+      <ConfirmationModal
+        visible={unfollowConfirmVisible}
+        title="Batal Mengikuti?"
+        message={`Apakah Anda yakin ingin berhenti mengikuti ${profileUser.displayName || 'pengguna ini'}?`}
+        confirmText="Unfollow"
+        cancelText="Batal"
+        isDestructive={true}
+        icon="person-remove-outline"
+        onConfirm={async () => {
+          setUnfollowConfirmVisible(false);
+          await updateFollowState(false);
+        }}
+        onCancel={() => setUnfollowConfirmVisible(false)}
+      />
     </SafeAreaView>
   );
 }

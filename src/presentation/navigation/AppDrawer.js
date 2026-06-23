@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import UserAvatar from '../components/common/UserAvatar';
+import ConfirmationModal from '../components/common/ConfirmationModal';
 import MainTabs from './MainTabs';
 import OfflineCenterScreen from '../screens/offline/OfflineCenterScreen';
 import { DrawerControllerProvider } from './DrawerController';
@@ -89,6 +90,7 @@ function MinimalDrawer({ visible, colors, onClose, onNavigate }) {
   const slideProgress = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
   const [aboutVisible, setAboutVisible] = useState(false);
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const themeMode = useThemeStore((state) => state.themeMode);
@@ -150,13 +152,18 @@ function MinimalDrawer({ visible, colors, onClose, onNavigate }) {
     setAboutVisible(true);
   };
 
-  const handleLogout = async () => {
+  const performLogout = async () => {
     try {
+      setLogoutConfirmVisible(false);
       await logout();
       onClose();
     } catch (error) {
       Alert.alert('Logout gagal', error?.message || 'Tidak bisa logout saat ini.');
     }
+  };
+
+  const handleLogout = () => {
+    setLogoutConfirmVisible(true);
   };
 
   const items = [
@@ -246,6 +253,17 @@ function MinimalDrawer({ visible, colors, onClose, onNavigate }) {
       </Modal>
       ) : null}
       <AboutModal visible={aboutVisible} colors={colors} onClose={() => setAboutVisible(false)} />
+      <ConfirmationModal
+        visible={logoutConfirmVisible}
+        title="Keluar dari Akun?"
+        message="Anda akan keluar dari sesi saat ini. Silakan login kembali untuk mengakses feed Anda."
+        confirmText="Logout"
+        cancelText="Batal"
+        isDestructive={true}
+        icon="log-out-outline"
+        onConfirm={performLogout}
+        onCancel={() => setLogoutConfirmVisible(false)}
+      />
     </>
   );
 }
